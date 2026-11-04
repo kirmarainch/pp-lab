@@ -1,0 +1,29 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.DS_Store
+Thumbs.db
+
+# video and other large local-only assets stay out of the repo
+video/
+*.mp4
+*.mov
+*.mkv
+*.prproj
+*.drp
+
+.env
+.env.*
+!.env.example
+
+.vite/
+*.tsbuildinfo
+
+# local visual QA artifacts
+.screenshots/
+scripts/
+
+# user-owned source material, kept local
+PROJECT_BRIEF.zh-CN.md
+应用图标.jpg
