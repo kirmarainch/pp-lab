@@ -2,6 +2,7 @@ import { useLabStore } from '../../lib/store'
 
 export function LeftRail() {
   const experiment = useLabStore((state) => state.experiment)
+  const revisionPending = useLabStore((state) => state.revisionPending)
   const toggleCondition = useLabStore((state) => state.toggleCondition)
 
   if (!experiment) return null
@@ -46,6 +47,7 @@ export function LeftRail() {
               type="button"
               className={`condition-row ${condition.value ? 'is-on' : ''}`}
               aria-pressed={condition.value}
+              disabled={revisionPending}
               onClick={() => toggleCondition(condition.id)}
             >
               <span className="condition-head">

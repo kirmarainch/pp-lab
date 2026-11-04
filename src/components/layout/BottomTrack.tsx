@@ -11,6 +11,7 @@ function padVersion(version: number): string {
 
 export function BottomTrack() {
   const experiment = useLabStore((state) => state.experiment)
+  const revisionPending = useLabStore((state) => state.revisionPending)
   const revisions = useLabStore((state) => state.revisions)
   const selectedRevisionId = useLabStore((state) => state.selectedRevisionId)
   const selectRevision = useLabStore((state) => state.selectRevision)
@@ -51,6 +52,7 @@ export function BottomTrack() {
             type="button"
             className="btn btn-sm btn-primary"
             onClick={() => setDialogOpen(true)}
+            disabled={revisionPending}
           >
             保存当前版本
           </button>
@@ -120,7 +122,7 @@ export function BottomTrack() {
                 type="button"
                 className="btn btn-sm"
                 onClick={() => void handleRestore()}
-                disabled={restoring}
+                disabled={restoring || revisionPending}
                 title={`恢复「${selected.label}」的快照`}
               >
                 <RestoreIcon />

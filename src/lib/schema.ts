@@ -106,7 +106,7 @@ export const SceneSpecSchema = z
           path: ['bindings'],
         })
       }
-      const key = `${binding.conditionId}:${binding.entityId}:${binding.property}`
+      const key = JSON.stringify([binding.entityId, binding.property])
       if (bindingKeys.has(key)) {
         ctx.addIssue({
           code: 'custom',
@@ -156,6 +156,7 @@ export const ProbeSchema = z.object({
   createdAt: z.number(),
   stanceId: z.string().nullable(),
   conditionStates: z.record(z.string(), z.boolean()),
+  claimSnapshot: z.string().optional(),
   targetPremise: z.string(),
   objection: z.string(),
   question: z.string(),

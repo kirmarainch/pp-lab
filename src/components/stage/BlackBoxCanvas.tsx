@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
   Edges,
@@ -13,6 +14,8 @@ import { readNumberProp, type ResolvedScene } from '../../lib/resolveScene'
 import type { CameraPreset } from '../../lib/schema'
 import type { Theme } from '../../lib/theme'
 import { LabelProjector, type LabelRegistry } from './SceneLabels'
+
+const ReducedMotion = createContext(false)
 
 interface ScenePalette {
   fog: string
@@ -70,6 +73,15 @@ export function BlackBoxCanvas({
   labelRegistry,
   theme,
 }: BlackBoxCanvasProps) {
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReducedMotion(query.matches)
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
   return (
     <Canvas
       dpr={[1, 1.75]}
@@ -86,12 +98,14 @@ export function BlackBoxCanvas({
       }}
       style={{ background: 'transparent' }}
     >
-      <SceneContents
-        scene={scene}
-        preset={preset}
-        labelRegistry={labelRegistry}
-        theme={theme}
-      />
+      <ReducedMotion.Provider value={reducedMotion}>
+        <SceneContents
+          scene={scene}
+          preset={preset}
+          labelRegistry={labelRegistry}
+          theme={theme}
+        />
+      </ReducedMotion.Provider>
     </Canvas>
   )
 }
@@ -362,6 +376,7 @@ interface MonolithProps {
 }
 
 function Monolith({ open, seamIntensity, capLight, palette }: MonolithProps) {
+  const reducedMotion = useContext(ReducedMotion)
   const materialRef = useRef<THREE.MeshStandardMaterial>(null)
   const glow = useGlowTexture('99,214,226')
 
@@ -369,7 +384,7 @@ function Monolith({ open, seamIntensity, capLight, palette }: MonolithProps) {
     const material = materialRef.current
     if (!material) return
     const target = open ? 0.18 : 1
-    const opacity = THREE.MathUtils.damp(material.opacity, target, 5, delta)
+    const opacity = reducedMotion ? target : THREE.MathUtils.damp(material.opacity, target, 5, delta)
     material.opacity = opacity
     const transparent = opacity < 0.985
     if (material.transparent !== transparent) {
@@ -510,15 +525,16 @@ function Seal({ open }: { open: boolean }) {
 /* ---------- core ---------- */
 
 function Core({ visible, spin }: { visible: boolean; spin: number }) {
+  const reducedMotion = useContext(ReducedMotion)
   const group = useRef<THREE.Group>(null)
 
   useFrame((state, delta) => {
     if (!group.current) return
     const target = visible ? 1 : 0
-    const scale = THREE.MathUtils.damp(group.current.scale.x, target, 6, delta)
+    const scale = reducedMotion ? target : THREE.MathUtils.damp(group.current.scale.x, target, 6, delta)
     group.current.scale.setScalar(scale)
-    group.current.rotation.y += delta * spin
-    group.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.24) * 0.16
+    if (!reducedMotion) group.current.rotation.y += delta * spin
+    group.current.rotation.x = reducedMotion ? 0 : Math.sin(state.clock.elapsedTime * 0.24) * 0.16
   })
 
   return (
@@ -569,14 +585,15 @@ function Core({ visible, spin }: { visible: boolean; spin: number }) {
 /* ---------- reason ring ---------- */
 
 function ReasonRing({ visible, spin }: { visible: boolean; spin: number }) {
+  const reducedMotion = useContext(ReducedMotion)
   const group = useRef<THREE.Group>(null)
 
   useFrame((_, delta) => {
     if (!group.current) return
     const target = visible ? 1 : 0
-    const scale = THREE.MathUtils.damp(group.current.scale.x, target, 5, delta)
+    const scale = reducedMotion ? target : THREE.MathUtils.damp(group.current.scale.x, target, 5, delta)
     group.current.scale.setScalar(scale)
-    group.current.rotation.y += delta * spin
+    if (!reducedMotion) group.current.rotation.y += delta * spin
   })
 
   const markers = useMemo(
@@ -700,13 +717,14 @@ const VERIFIER_PILLARS: Array<[number, number, number]> = [
 ]
 
 function Verifier({ visible }: { visible: boolean }) {
+  const reducedMotion = useContext(ReducedMotion)
   const group = useRef<THREE.Group>(null)
   const glow = useGlowTexture('220,169,78')
 
   useFrame((_, delta) => {
     if (!group.current) return
     const target = visible ? 1 : 0
-    const scale = THREE.MathUtils.damp(group.current.scale.x, target, 5, delta)
+    const scale = reducedMotion ? target : THREE.MathUtils.damp(group.current.scale.x, target, 5, delta)
     group.current.scale.setScalar(scale)
   })
 
@@ -805,12 +823,13 @@ function Channel({ opacity }: { opacity: number }) {
   )
 
   const points = useMemo(() => curve.getPoints(48), [curve])
+  const reducedMotion = useContext(ReducedMotion)
   const flow = useRef<THREE.Group>(null)
 
   useFrame((state) => {
     if (!flow.current) return
     flow.current.children.forEach((child, index) => {
-      const t = (state.clock.elapsedTime * 0.18 + index / 3) % 1
+      const t = ((reducedMotion ? 0 : state.clock.elapsedTime * 0.18) + index / 3) % 1
       child.position.copy(curve.getPoint(t))
     })
   })
@@ -854,6 +873,7 @@ function Channel({ opacity }: { opacity: number }) {
 /* ---------- dust & labels ---------- */
 
 function Dust() {
+  const reducedMotion = useContext(ReducedMotion)
   const group = useRef<THREE.Group>(null)
 
   const positions = useMemo(() => {
@@ -870,7 +890,7 @@ function Dust() {
 
   useFrame((state) => {
     if (!group.current) return
-    group.current.rotation.y = state.clock.elapsedTime * 0.009
+    if (!reducedMotion) group.current.rotation.y = state.clock.elapsedTime * 0.009
   })
 
   return (
@@ -896,6 +916,7 @@ function Dust() {
 /* ---------- camera ---------- */
 
 function CameraRig({ preset }: { preset: CameraPreset }) {
+  const reducedMotion = useContext(ReducedMotion)
   const { camera, controls } = useThree()
   const animating = useRef(true)
 
@@ -911,7 +932,7 @@ function CameraRig({ preset }: { preset: CameraPreset }) {
 
   useFrame((_, delta) => {
     if (!animating.current) return
-    const alpha = 1 - Math.exp(-4.6 * delta)
+    const alpha = reducedMotion ? 1 : 1 - Math.exp(-4.6 * delta)
     camera.position.lerp(targetPosition, alpha)
 
     const orbit = controls as unknown as {

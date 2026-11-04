@@ -5,7 +5,7 @@ interface RevisionDialogProps {
   open: boolean
   defaultLabel: string
   onClose: () => void
-  onSubmit: (label: string, reason: string) => Promise<void>
+  onSubmit: (label: string, reason: string) => Promise<boolean>
 }
 
 export function RevisionDialog({
@@ -33,11 +33,11 @@ export function RevisionDialog({
   useEffect(() => {
     if (!open) return
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape' && !pending) onClose()
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [open, onClose])
+  }, [open, onClose, pending])
 
   if (!open) return null
 
@@ -51,8 +51,7 @@ export function RevisionDialog({
     setError('')
     setPending(true)
     try {
-      await onSubmit(label, cleanReason)
-      onClose()
+      if (await onSubmit(label, cleanReason)) onClose()
     } finally {
       setPending(false)
     }
@@ -62,7 +61,7 @@ export function RevisionDialog({
     <div
       className="modal-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (event.target === event.currentTarget && !pending) onClose()
       }}
     >
       <form
@@ -100,6 +99,7 @@ export function RevisionDialog({
               value={label}
               onChange={(event) => setLabel(event.target.value)}
               placeholder={defaultLabel}
+              disabled={pending}
               maxLength={48}
               autoFocus
             />
@@ -119,6 +119,7 @@ export function RevisionDialog({
                 if (error) setError('')
               }}
               placeholder="（待填写）"
+              disabled={pending}
               maxLength={280}
             />
           </label>

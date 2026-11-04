@@ -3,6 +3,7 @@ import { useLabStore } from '../../lib/store'
 
 export function JudgmentSection() {
   const experiment = useLabStore((state) => state.experiment)
+  const revisionPending = useLabStore((state) => state.revisionPending)
   const updateClaim = useLabStore((state) => state.updateClaim)
   const setStance = useLabStore((state) => state.setStance)
 
@@ -25,6 +26,7 @@ export function JudgmentSection() {
           className="claim-input"
           value={experiment.claim}
           maxLength={280}
+          disabled={revisionPending}
           onChange={(event) => updateClaim(event.target.value)}
           placeholder="（待填写）"
           aria-label="你的判断"
@@ -44,6 +46,7 @@ export function JudgmentSection() {
               key={stance.id}
               type="button"
               role="radio"
+              disabled={revisionPending}
               aria-checked={selected}
               className="stance-card"
               onClick={() => setStance(stance.id)}

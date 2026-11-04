@@ -5,6 +5,7 @@ import type { Probe, SceneSpec } from './schema'
 interface ProbeInput {
   sceneSpec: SceneSpec
   stanceId: string | null
+  claim: string
 }
 
 /**
@@ -20,6 +21,7 @@ export function runPremiseProbe(input: ProbeInput): Probe {
     createdAt: Date.now(),
     stanceId: input.stanceId,
     conditionStates: conditions,
+    claimSnapshot: input.claim,
     targetPremise: PROBE_PLACEHOLDER.targetPremise,
     objection: PROBE_PLACEHOLDER.objection,
     question: PROBE_PLACEHOLDER.question,

@@ -82,7 +82,12 @@ export function LabelProjector({ annotations, registry }: LabelProjectorProps) {
       }
 
       element.style.opacity = '1'
-      element.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`
+      const halfWidth = element.offsetWidth / 2
+      const halfHeight = element.offsetHeight / 2
+      const inset = 12
+      const labelX = Math.max(halfWidth + inset, Math.min(size.width - halfWidth - inset, x))
+      const labelY = Math.max(halfHeight + inset, Math.min(size.height - halfHeight - inset, y))
+      element.style.transform = `translate3d(${labelX.toFixed(1)}px, ${labelY.toFixed(1)}px, 0) translate(-50%, -50%)`
     }
   })
 
