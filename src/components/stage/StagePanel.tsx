@@ -3,6 +3,7 @@ import { describeScene } from '../../lib/narrative'
 import { resolveScene } from '../../lib/resolveScene'
 import type { CameraPreset } from '../../lib/schema'
 import { useLabStore } from '../../lib/store'
+import type { Theme } from '../../lib/theme'
 import { SceneErrorBoundary } from '../ui/SceneErrorBoundary'
 import { BlackBoxCanvas } from './BlackBoxCanvas'
 import { Fallback2D } from './Fallback2D'
@@ -23,7 +24,7 @@ function detectWebGL(): boolean {
   }
 }
 
-export function StagePanel() {
+export function StagePanel({ theme }: { theme: Theme }) {
   const experiment = useLabStore((state) => state.experiment)
   const [presetId, setPresetId] = useState<CameraPresetId>('overview')
   const [webglAvailable] = useState(detectWebGL)
@@ -62,17 +63,19 @@ export function StagePanel() {
       <div className="stage-canvas-host">
         {use3D ? (
           <SceneErrorBoundary
-            fallback={<Fallback2D scene={scene} />}
+            fallback={<Fallback2D scene={scene} theme={theme} />}
             onError={() => setRenderFailed(true)}
           >
             <BlackBoxCanvas
+              key={theme}
               scene={scene}
               preset={preset}
               labelRegistry={labelRegistry}
+              theme={theme}
             />
           </SceneErrorBoundary>
         ) : (
-          <Fallback2D scene={scene} />
+          <Fallback2D scene={scene} theme={theme} />
         )}
       </div>
 

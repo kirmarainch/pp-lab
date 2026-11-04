@@ -3,12 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#05070b" />
+    <meta name="theme-color" content="#f3f1eb" />
     <meta name="description" content="PP Lab — 悖论与可能性实验室" />
     <link rel="icon" type="image/png" href="./icon.png" />
     <link rel="apple-touch-icon" href="./icon-512.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <title>PP Lab · 悖论与可能性实验室</title>
+    <script>
+      try {
+        const theme = localStorage.getItem('pp-lab-theme') === 'dark' ? 'dark' : 'light'
+        document.documentElement.dataset.theme = theme
+        document.documentElement.style.colorScheme = theme
+        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#11171c' : '#f3f1eb'
+      } catch {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

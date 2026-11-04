@@ -69,3 +69,20 @@ export function ProbeIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function SunIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props} strokeLinecap="round">
+      <circle cx="8" cy="8" r="2.6" />
+      <path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M12.6 3.4l-.9.9M4.3 11.7l-.9.9" />
+    </svg>
+  )
+}
+
+export function MoonIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12.8 10.3A5.4 5.4 0 0 1 5.7 3.2a5.4 5.4 0 1 0 7.1 7.1Z" />
+    </svg>
+  )
+}

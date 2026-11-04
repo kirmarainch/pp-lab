@@ -1,7 +1,8 @@
 import { assetUrl } from '../../lib/asset'
 import { exportExperiment } from '../../lib/exportExperiment'
 import { useLabStore } from '../../lib/store'
-import { DownloadIcon } from '../ui/Icons'
+import type { Theme } from '../../lib/theme'
+import { DownloadIcon, MoonIcon, SunIcon } from '../ui/Icons'
 
 const SAVE_LABEL = {
   idle: '本地模式',
@@ -10,7 +11,12 @@ const SAVE_LABEL = {
   error: '本地存储不可用',
 } as const
 
-export function TopBar() {
+interface TopBarProps {
+  theme: Theme
+  onToggleTheme: () => void
+}
+
+export function TopBar({ theme, onToggleTheme }: TopBarProps) {
   const experiment = useLabStore((state) => state.experiment)
   const saveState = useLabStore((state) => state.saveState)
   const notify = useLabStore((state) => state.notify)
@@ -47,6 +53,18 @@ export function TopBar() {
       </div>
 
       <div className="topbar-right">
+        <button
+          type="button"
+          className="theme-toggle"
+          data-theme={theme}
+          onClick={onToggleTheme}
+          aria-label={theme === 'light' ? '切换到夜晚模式' : '切换到白天模式'}
+          aria-pressed={theme === 'dark'}
+        >
+          <SunIcon />
+          <MoonIcon />
+          <span className="theme-toggle-thumb" aria-hidden="true" />
+        </button>
         <span className="chip">LOCAL MODE</span>
         <span className="save-status">
           <span

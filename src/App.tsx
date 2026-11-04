@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { assetUrl } from './lib/asset'
+import { applyTheme, getInitialTheme, type Theme } from './lib/theme'
 import { useLabStore } from './lib/store'
 import { TopBar } from './components/layout/TopBar'
 import { LeftRail } from './components/layout/LeftRail'
@@ -22,19 +23,27 @@ function BootScreen() {
 export default function App() {
   const hydrate = useLabStore((state) => state.hydrate)
   const hydrated = useLabStore((state) => state.hydrated)
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
 
   useEffect(() => {
     void hydrate()
   }, [hydrate])
 
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
+
   return (
     <div className="app-shell">
-      <TopBar />
+      <TopBar
+        theme={theme}
+        onToggleTheme={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
+      />
       {hydrated ? (
         <>
           <main className="main-grid">
             <LeftRail />
-            <StagePanel />
+            <StagePanel theme={theme} />
             <RightPanel />
           </main>
           <BottomTrack />

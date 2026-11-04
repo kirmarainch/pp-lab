@@ -1,10 +1,32 @@
 import type { ResolvedScene } from '../../lib/resolveScene'
+import type { Theme } from '../../lib/theme'
 
 interface Fallback2DProps {
   scene: ResolvedScene
+  theme: Theme
 }
 
-export function Fallback2D({ scene }: Fallback2DProps) {
+const FALLBACK_COLORS = {
+  light: {
+    background: '#e3e9e6',
+    solid: '#26363c',
+    solidSoft: '#415158',
+    shadow: 'rgba(38,54,60,0.16)',
+    label: '#26363c',
+    sublabel: '#647278',
+  },
+  dark: {
+    background: '#101a20',
+    solid: '#17242b',
+    solidSoft: '#26363e',
+    shadow: 'rgba(0,0,0,0.4)',
+    label: '#e5e9e4',
+    sublabel: '#829198',
+  },
+} as const
+
+export function Fallback2D({ scene, theme }: Fallback2DProps) {
+  const colors = FALLBACK_COLORS[theme]
   const isOn = (conditionId: string) =>
     scene.spec.conditions.find((condition) => condition.id === conditionId)?.value ?? false
 
@@ -71,7 +93,7 @@ export function Fallback2D({ scene }: Fallback2DProps) {
           </marker>
         </defs>
 
-        <rect width="820" height="460" fill="#05080e" />
+        <rect width="820" height="460" fill={colors.background} />
         <rect width="820" height="460" fill="url(#fb-grid)" opacity="0.75" />
 
         <ellipse cx="410" cy="344" rx="300" ry="78" fill="url(#fb-floor)" />
@@ -212,7 +234,8 @@ export function Fallback2D({ scene }: Fallback2DProps) {
             y="-92"
             width="110"
             height="184"
-            fill={interpretable ? 'rgba(7,16,23,0.55)' : '#080d15'}
+            fill={interpretable ? colors.solidSoft : colors.solid}
+            fillOpacity={interpretable ? 0.72 : 1}
             stroke="rgba(233,229,218,0.32)"
             strokeWidth="0.9"
           />
@@ -320,7 +343,7 @@ export function Fallback2D({ scene }: Fallback2DProps) {
           <ellipse cx="680" cy="326" rx="30" ry="6" fill="none" stroke="rgba(232,227,215,0.12)" />
           <path
             d="M666 326C668 280 672 248 676 232L684 232C688 248 692 280 694 326Z"
-            fill="#0d131c"
+            fill={colors.solidSoft}
             stroke="rgba(233,229,218,0.22)"
             strokeWidth="0.8"
           />
@@ -328,7 +351,7 @@ export function Fallback2D({ scene }: Fallback2DProps) {
             cx="680"
             cy="217"
             r="13"
-            fill="#0b1018"
+            fill={colors.solid}
             stroke="rgba(233,229,218,0.28)"
             strokeWidth="0.8"
           />

@@ -11,32 +11,78 @@ import {
 import * as THREE from 'three'
 import { readNumberProp, type ResolvedScene } from '../../lib/resolveScene'
 import type { CameraPreset } from '../../lib/schema'
+import type { Theme } from '../../lib/theme'
 import { LabelProjector, type LabelRegistry } from './SceneLabels'
+
+interface ScenePalette {
+  fog: string
+  floor: string
+  platform: string
+  gridMajor: string
+  gridMinor: string
+  pillar: string
+  wall: string
+  frame: string
+  solid: string
+  solidSoft: string
+  paper: string
+}
+
+const SCENE_PALETTES: Record<Theme, ScenePalette> = {
+  light: {
+    fog: '#dce5e2',
+    floor: '#c3cec9',
+    platform: '#b5c3be',
+    gridMajor: '#8fa7a2',
+    gridMinor: '#acbdb8',
+    pillar: '#a9b8b3',
+    wall: '#d8e1dd',
+    frame: '#9bada8',
+    solid: '#26363c',
+    solidSoft: '#405158',
+    paper: '#f4f0e6',
+  },
+  dark: {
+    fog: '#101a20',
+    floor: '#141f26',
+    platform: '#19272e',
+    gridMajor: '#30474f',
+    gridMinor: '#20333b',
+    pillar: '#202e35',
+    wall: '#121e25',
+    frame: '#2b3c44',
+    solid: '#142129',
+    solidSoft: '#293a42',
+    paper: '#e9e5da',
+  },
+}
 
 interface BlackBoxCanvasProps {
   scene: ResolvedScene
   preset: CameraPreset
   labelRegistry: LabelRegistry
+  theme: Theme
 }
 
 export function BlackBoxCanvas({
   scene,
   preset,
   labelRegistry,
+  theme,
 }: BlackBoxCanvasProps) {
   return (
     <Canvas
       dpr={[1, 1.75]}
       camera={{
         position: [...preset.position],
-        fov: 38,
+        fov: window.innerWidth < 600 ? 55 : 38,
         near: 0.1,
         far: 120,
       }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = 1.12
+        gl.toneMappingExposure = theme === 'light' ? 1.12 : 1.16
       }}
       style={{ background: 'transparent' }}
     >
@@ -44,12 +90,14 @@ export function BlackBoxCanvas({
         scene={scene}
         preset={preset}
         labelRegistry={labelRegistry}
+        theme={theme}
       />
     </Canvas>
   )
 }
 
-function SceneContents({ scene, preset, labelRegistry }: BlackBoxCanvasProps) {
+function SceneContents({ scene, preset, labelRegistry, theme }: BlackBoxCanvasProps) {
+  const palette = SCENE_PALETTES[theme]
   const monolithOpacity = readNumberProp(scene, 'monolith', 'opacity', 1)
   const open = monolithOpacity < 0.5
   const seamIntensity = readNumberProp(scene, 'monolith', 'seamIntensity', 0.28)
@@ -63,11 +111,21 @@ function SceneContents({ scene, preset, labelRegistry }: BlackBoxCanvasProps) {
 
   return (
     <>
-      <fogExp2 attach="fog" args={['#05080e', 0.052]} />
-      <ambientLight intensity={0.34} />
-      <hemisphereLight args={['#a6cce8', '#05070b', 0.28]} />
-      <directionalLight position={[5, 9, 5]} intensity={1.55} color="#d7e9ff" />
-      <directionalLight position={[-7, 4, -3]} intensity={0.55} color="#4d6f96" />
+      <fogExp2 attach="fog" args={[palette.fog, theme === 'light' ? 0.034 : 0.046]} />
+      <ambientLight intensity={theme === 'light' ? 0.72 : 0.48} />
+      <hemisphereLight
+        args={[theme === 'light' ? '#f4fbf7' : '#b7d8e4', palette.floor, theme === 'light' ? 0.5 : 0.36]}
+      />
+      <directionalLight
+        position={[5, 9, 5]}
+        intensity={theme === 'light' ? 1.9 : 1.7}
+        color={theme === 'light' ? '#fff8e9' : '#d7e9ff'}
+      />
+      <directionalLight
+        position={[-7, 4, -3]}
+        intensity={theme === 'light' ? 0.8 : 0.62}
+        color={theme === 'light' ? '#a8d4d2' : '#6f96ae'}
+      />
       <pointLight
         position={[0, 2.6, 0.8]}
         intensity={open ? 8 : 3}
@@ -104,16 +162,17 @@ function SceneContents({ scene, preset, labelRegistry }: BlackBoxCanvasProps) {
         />
       </Environment>
 
-      <Room />
-      <FloorGlow />
+      <Room palette={palette} />
+      <FloorGlow theme={theme} />
       <Monolith
         open={open}
         seamIntensity={seamIntensity}
         capLight={capLight}
+        palette={palette}
       />
       <Core visible={coreScale > 0.5} spin={coreSpin} />
       <ReasonRing visible={reasonScale > 0.5} spin={reasonSpin} />
-      <Observer />
+      <Observer palette={palette} />
       <Verifier visible={verifierScale > 0.5} />
       <Channel opacity={channelOpacity} />
       <Dust />
@@ -137,20 +196,23 @@ function SceneContents({ scene, preset, labelRegistry }: BlackBoxCanvasProps) {
 
 /* ---------- room ---------- */
 
-function Room() {
+function Room({ palette }: { palette: ScenePalette }) {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <planeGeometry args={[80, 80]} />
-        <meshStandardMaterial color="#060910" roughness={0.86} metalness={0.28} />
+        <meshStandardMaterial color={palette.floor} roughness={0.86} metalness={0.18} />
       </mesh>
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
         <circleGeometry args={[6.2, 96]} />
-        <meshStandardMaterial color="#090e16" roughness={0.66} metalness={0.42} />
+        <meshStandardMaterial color={palette.platform} roughness={0.66} metalness={0.3} />
       </mesh>
 
-      <gridHelper args={[34, 68, '#16202c', '#0a1119']} position={[0, 0.026, 0]} />
+      <gridHelper
+        args={[34, 68, palette.gridMajor, palette.gridMinor]}
+        position={[0, 0.026, 0]}
+      />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.032, 0]}>
         <ringGeometry args={[3.62, 3.65, 128]} />
@@ -183,7 +245,7 @@ function Room() {
           >
             <boxGeometry args={[0.16, 7.2, 0.16]} />
             <meshStandardMaterial
-              color="#0c121b"
+              color={palette.pillar}
               roughness={0.82}
               metalness={0.24}
             />
@@ -193,21 +255,21 @@ function Room() {
 
       <mesh position={[0, 4, -9.2]}>
         <planeGeometry args={[30, 18]} />
-        <meshStandardMaterial color="#060a11" roughness={0.96} metalness={0.05} />
+        <meshStandardMaterial color={palette.wall} roughness={0.96} metalness={0.05} />
       </mesh>
 
       <group position={[0, 0, -3.9]}>
         <mesh position={[-2.72, 2.78, 0]}>
           <boxGeometry args={[0.07, 5.56, 0.07]} />
-          <meshStandardMaterial color="#0d131c" roughness={0.55} metalness={0.55} />
+          <meshStandardMaterial color={palette.frame} roughness={0.55} metalness={0.55} />
         </mesh>
         <mesh position={[2.72, 2.78, 0]}>
           <boxGeometry args={[0.07, 5.56, 0.07]} />
-          <meshStandardMaterial color="#0d131c" roughness={0.55} metalness={0.55} />
+          <meshStandardMaterial color={palette.frame} roughness={0.55} metalness={0.55} />
         </mesh>
         <mesh position={[0, 5.56, 0]}>
           <boxGeometry args={[5.5, 0.07, 0.07]} />
-          <meshStandardMaterial color="#0d131c" roughness={0.55} metalness={0.55} />
+          <meshStandardMaterial color={palette.frame} roughness={0.55} metalness={0.55} />
         </mesh>
         <Line
           points={[
@@ -272,8 +334,8 @@ function useGlowTexture(rgb: string) {
   return texture
 }
 
-function FloorGlow() {
-  const texture = useGlowTexture('99,214,226')
+function FloorGlow({ theme }: { theme: Theme }) {
+  const texture = useGlowTexture(theme === 'light' ? '39,137,143' : '99,214,226')
   if (!texture) return null
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
@@ -281,7 +343,7 @@ function FloorGlow() {
       <meshBasicMaterial
         map={texture}
         transparent
-        opacity={0.7}
+        opacity={theme === 'light' ? 0.28 : 0.56}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
         toneMapped={false}
@@ -296,9 +358,10 @@ interface MonolithProps {
   open: boolean
   seamIntensity: number
   capLight: number
+  palette: ScenePalette
 }
 
-function Monolith({ open, seamIntensity, capLight }: MonolithProps) {
+function Monolith({ open, seamIntensity, capLight, palette }: MonolithProps) {
   const materialRef = useRef<THREE.MeshStandardMaterial>(null)
   const glow = useGlowTexture('99,214,226')
 
@@ -320,7 +383,7 @@ function Monolith({ open, seamIntensity, capLight }: MonolithProps) {
     <group>
       <mesh position={[0, 0.075, 0]}>
         <cylinderGeometry args={[1.48, 1.62, 0.15, 72]} />
-        <meshStandardMaterial color="#090d14" roughness={0.44} metalness={0.58} />
+        <meshStandardMaterial color={palette.solidSoft} roughness={0.44} metalness={0.58} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.155, 0]}>
         <ringGeometry args={[1.16, 1.175, 96]} />
@@ -341,7 +404,7 @@ function Monolith({ open, seamIntensity, capLight }: MonolithProps) {
       >
         <meshStandardMaterial
           ref={materialRef}
-          color="#0a0e15"
+          color={palette.solid}
           roughness={0.23}
           metalness={0.82}
           emissive="#0a2228"
@@ -560,18 +623,18 @@ function ReasonRing({ visible, spin }: { visible: boolean; spin: number }) {
 
 /* ---------- observer ---------- */
 
-function Observer() {
+function Observer({ palette }: { palette: ScenePalette }) {
   return (
     <group position={[3.5, 0, 1.3]} rotation={[0, Math.atan2(-3.5, -1.3), 0]}>
       <mesh position={[0, 0.035, 0]}>
         <cylinderGeometry args={[0.3, 0.36, 0.07, 40]} />
-        <meshStandardMaterial color="#080b11" roughness={0.55} metalness={0.35} />
+        <meshStandardMaterial color={palette.solid} roughness={0.55} metalness={0.35} />
       </mesh>
 
       <mesh position={[0, 0.72, 0]}>
         <cylinderGeometry args={[0.14, 0.26, 1.32, 24]} />
         <meshStandardMaterial
-          color="#0d131c"
+          color={palette.frame}
           roughness={0.4}
           metalness={0.35}
           emissive="#0a141d"
@@ -581,7 +644,7 @@ function Observer() {
       <mesh position={[0, 1.5, 0]}>
         <sphereGeometry args={[0.145, 24, 24]} />
         <meshStandardMaterial
-          color="#0c1119"
+          color={palette.solid}
           roughness={0.38}
           metalness={0.4}
           emissive="#0b141d"
@@ -590,21 +653,21 @@ function Observer() {
       </mesh>
       <mesh position={[0, 1.2, -0.035]} rotation={[0.2, 0, 0]}>
         <boxGeometry args={[0.35, 0.06, 0.22]} />
-        <meshStandardMaterial color="#0c121a" roughness={0.5} metalness={0.3} />
+        <meshStandardMaterial color={palette.solidSoft} roughness={0.5} metalness={0.3} />
       </mesh>
 
       <group position={[0, 0.86, 0.58]}>
         <mesh>
           <boxGeometry args={[0.86, 0.075, 0.36]} />
-          <meshStandardMaterial color="#0a0e15" roughness={0.4} metalness={0.5} />
+          <meshStandardMaterial color={palette.solid} roughness={0.4} metalness={0.5} />
         </mesh>
         <mesh position={[0, -0.45, 0]}>
           <cylinderGeometry args={[0.035, 0.05, 0.86, 12]} />
-          <meshStandardMaterial color="#0a0f16" roughness={0.5} metalness={0.4} />
+          <meshStandardMaterial color={palette.solidSoft} roughness={0.5} metalness={0.4} />
         </mesh>
         <mesh position={[0, 0.22, 0.08]} rotation={[-0.22, 0, 0]}>
           <boxGeometry args={[0.48, 0.34, 0.015]} />
-          <meshStandardMaterial color="#061119" roughness={0.3} metalness={0.4} />
+          <meshStandardMaterial color={palette.solid} roughness={0.3} metalness={0.4} />
         </mesh>
         <mesh position={[0, 0.225, 0.089]} rotation={[-0.22, 0, 0]}>
           <planeGeometry args={[0.42, 0.28]} />
