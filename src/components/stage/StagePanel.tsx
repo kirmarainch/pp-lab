@@ -8,8 +8,10 @@ import { SceneErrorBoundary } from '../ui/SceneErrorBoundary'
 import { BlackBoxCanvas } from './BlackBoxCanvas'
 import { Fallback2D } from './Fallback2D'
 import { SceneLabelOverlay } from './SceneLabels'
+import { ThoughtMap } from './ThoughtMap'
 
 type CameraPresetId = CameraPreset['id']
+type StageView = 'scene' | 'map'
 
 function detectWebGL(): boolean {
   try {
@@ -26,6 +28,7 @@ function detectWebGL(): boolean {
 
 export function StagePanel({ theme }: { theme: Theme }) {
   const experiment = useLabStore((state) => state.experiment)
+  const [view, setView] = useState<StageView>('scene')
   const [presetId, setPresetId] = useState<CameraPresetId>('overview')
   const [webglAvailable] = useState(detectWebGL)
   const [renderFailed, setRenderFailed] = useState(false)
@@ -59,9 +62,15 @@ export function StagePanel({ theme }: { theme: Theme }) {
   const activeCount = scene.spec.conditions.filter((condition) => condition.value).length
 
   return (
-    <section className="stage-panel" aria-label="黑箱室交互场景">
+    <section
+      className="stage-panel"
+      data-view={view}
+      aria-label={view === 'map' ? '思想星图' : '黑箱室交互场景'}
+    >
       <div className="stage-canvas-host">
-        {use3D ? (
+        {view === 'map' ? (
+          <ThoughtMap experiment={experiment} />
+        ) : use3D ? (
           <SceneErrorBoundary
             fallback={<Fallback2D scene={scene} theme={theme} />}
             onError={() => setRenderFailed(true)}
@@ -82,7 +91,7 @@ export function StagePanel({ theme }: { theme: Theme }) {
       <div className="stage-vignette" aria-hidden="true" />
       <div className="stage-grain" aria-hidden="true" />
       <div className="stage-scan" aria-hidden="true" />
-      {use3D && (
+      {view === 'scene' && use3D && (
         <SceneLabelOverlay
           annotations={scene.annotations}
           register={registerLabel}
@@ -94,49 +103,78 @@ export function StagePanel({ theme }: { theme: Theme }) {
           <div className="stage-title">
             <div className="scene-tag">
               <span className="bracket">[</span>
-              Scene 01 · Black Box Room
+              {view === 'map' ? 'Map 01 · Argument Constellation' : 'Scene 01 · Black Box Room'}
               <span className="bracket">]</span>
             </div>
-            <h1>{scene.spec.title}</h1>
-            <div className="stage-sub">{scene.spec.subtitle}</div>
+            {view === 'scene' && (
+              <>
+                <h1>{scene.spec.title}</h1>
+                <div className="stage-sub">{scene.spec.subtitle}</div>
+              </>
+            )}
           </div>
 
           <div className="stage-toolbar">
-            <div className="segmented" role="group" aria-label="相机预设">
-              {scene.spec.cameraPresets.map((camera) => (
-                <button
-                  key={camera.id}
-                  type="button"
-                  aria-pressed={camera.id === preset.id}
-                  onClick={() => setPresetId(camera.id)}
-                >
-                  {camera.label}
-                </button>
-              ))}
+            <div className="segmented stage-view-switch" role="group" aria-label="舞台视图">
+              <button
+                type="button"
+                aria-pressed={view === 'scene'}
+                onClick={() => setView('scene')}
+              >
+                场景
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === 'map'}
+                onClick={() => setView('map')}
+              >
+                星图
+              </button>
             </div>
-            <span className="stage-tool-meta">
-              Camera · {preset.label} / {activeCount} conditions
-            </span>
+
+            {view === 'scene' ? (
+              <>
+                <div className="segmented" role="group" aria-label="相机预设">
+                  {scene.spec.cameraPresets.map((camera) => (
+                    <button
+                      key={camera.id}
+                      type="button"
+                      aria-pressed={camera.id === preset.id}
+                      onClick={() => setPresetId(camera.id)}
+                    >
+                      {camera.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="stage-tool-meta">
+                  Camera · {preset.label} / {activeCount} conditions
+                </span>
+              </>
+            ) : (
+              <span className="stage-tool-meta">点击节点或关系查看解释与来源</span>
+            )}
           </div>
         </div>
 
-        <div className="stage-hud-bottom">
-          <div className="stage-caption">
-            <div className="caption-eyebrow">Condition reading / 条件读数</div>
-            <p>{describeScene(scene.spec)}</p>
-          </div>
+        {view === 'scene' && (
+          <div className="stage-hud-bottom">
+            <div className="stage-caption">
+              <div className="caption-eyebrow">Condition reading / 条件读数</div>
+              <p>{describeScene(scene.spec)}</p>
+            </div>
 
-          <div className="stage-status">
-            <span className="live-badge">Live binding</span>
-            <span className="stage-render-meta">
-              {use3D ? 'WebGL · R3F' : 'SVG · 2D fallback'} · Spec{' '}
-              {scene.spec.schemaVersion} · {scene.spec.bindings.length} bindings
-            </span>
+            <div className="stage-status">
+              <span className="live-badge">Live binding</span>
+              <span className="stage-render-meta">
+                {use3D ? 'WebGL · R3F' : 'SVG · 2D fallback'} · Spec{' '}
+                {scene.spec.schemaVersion} · {scene.spec.bindings.length} bindings
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {!use3D && (
+      {view === 'scene' && !use3D && (
         <div className="stage-fallback-note">WEBGL 不可用 · 2D 图解</div>
       )}
     </section>
