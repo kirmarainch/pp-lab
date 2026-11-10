@@ -157,6 +157,7 @@ export const ProbeSchema = z.object({
   stanceId: z.string().nullable(),
   conditionStates: z.record(z.string(), z.boolean()),
   claimSnapshot: z.string().optional(),
+  targetConditionId: z.string().optional(),
   targetPremise: z.string(),
   objection: z.string(),
   question: z.string(),

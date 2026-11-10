@@ -9,6 +9,8 @@ export function LeftRail() {
 
   const { sceneSpec } = experiment
   const activeCount = sceneSpec.conditions.filter((condition) => condition.value).length
+  const probeTargetId =
+    experiment.probe?.status === 'open' ? experiment.probe.targetConditionId : undefined
 
   return (
     <aside className="left-rail scroll-area" aria-label="实验与前提条件">
@@ -41,32 +43,41 @@ export function LeftRail() {
         </div>
 
         <div className="condition-list">
-          {sceneSpec.conditions.map((condition, index) => (
-            <button
-              key={condition.id}
-              type="button"
-              className={`condition-row ${condition.value ? 'is-on' : ''}`}
-              aria-pressed={condition.value}
-              disabled={revisionPending}
-              onClick={() => toggleCondition(condition.id)}
-            >
-              <span className="condition-head">
-                <span className="condition-title-wrap">
-                  <span className="condition-index">
-                    {String(index + 1).padStart(2, '0')}
+          {sceneSpec.conditions.map((condition, index) => {
+            const isTargeted = condition.id === probeTargetId
+            return (
+              <button
+                key={condition.id}
+                type="button"
+                className={`condition-row ${condition.value ? 'is-on' : ''} ${isTargeted ? 'is-targeted' : ''}`}
+                data-condition-id={condition.id}
+                aria-pressed={condition.value}
+                disabled={revisionPending}
+                onClick={() => toggleCondition(condition.id)}
+              >
+                <span className="condition-head">
+                  <span className="condition-title-wrap">
+                    <span className="condition-index">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="condition-title">{condition.label}</span>
+                    {isTargeted && (
+                      <span className="condition-target" title="探针目标前提">
+                        目标
+                      </span>
+                    )}
                   </span>
-                  <span className="condition-title">{condition.label}</span>
                 </span>
-              </span>
-              <span className="condition-hint">{condition.hint}</span>
-              <span className="condition-foot">
-                <span className="condition-state">
-                  {condition.value ? 'On / 已开启' : 'Off / 已关闭'}
+                <span className="condition-hint">{condition.hint}</span>
+                <span className="condition-foot">
+                  <span className="condition-state">
+                    {condition.value ? 'On / 已开启' : 'Off / 已关闭'}
+                  </span>
+                  <span className="switch" aria-hidden="true" />
                 </span>
-                <span className="switch" aria-hidden="true" />
-              </span>
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
       </section>
 

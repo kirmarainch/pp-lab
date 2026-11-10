@@ -9,6 +9,8 @@ export function JudgmentSection() {
 
   if (!experiment) return null
 
+  const selectedStance = STANCES.find((stance) => stance.id === experiment.stanceId)
+
   return (
     <section className="section" aria-labelledby="claim-heading">
       <div className="section-head">
@@ -64,6 +66,46 @@ export function JudgmentSection() {
           )
         })}
       </div>
+
+      {selectedStance && (
+        <div className="stance-detail">
+          <div className="stance-detail-block">
+            <div className="stance-detail-label">核心承诺</div>
+            <ul>
+              {selectedStance.commitments.map((commitment) => (
+                <li key={commitment}>{commitment}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="stance-detail-block">
+            <div className="stance-detail-label">常见反驳</div>
+            <ul>
+              {selectedStance.objections.map((objection) => (
+                <li key={objection}>{objection}</li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="stance-limitation">{selectedStance.limitation}</p>
+
+          <div className="stance-sources">
+            {selectedStance.sources.map((source) => (
+              <a
+                key={source.url}
+                className="stance-source"
+                href={source.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {source.citation} ↗
+              </a>
+            ))}
+          </div>
+
+          <p className="stance-disclaimer">基于其思想的模拟视角，不代表本人发言。</p>
+        </div>
+      )}
     </section>
   )
 }

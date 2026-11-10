@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PROBE_STATUS_LABEL, STANCE_BY_ID } from '../../lib/content'
 import { useLabStore, type ProbeAction } from '../../lib/store'
 import { ArrowRightIcon, ProbeIcon } from '../ui/Icons'
@@ -9,6 +9,7 @@ export function ProbeSection() {
   const resolveProbe = useLabStore((state) => state.resolveProbe)
 
   const revisionPending = useLabStore((state) => state.revisionPending)
+  const sectionRef = useRef<HTMLElement>(null)
   const [mode, setMode] = useState<'idle' | 'respond' | 'revise'>('idle')
   const [revisedClaim, setRevisedClaim] = useState('')
   const [response, setResponse] = useState('')
@@ -35,6 +36,9 @@ export function ProbeSection() {
       )
     : false
   const probeStance = probe?.stanceId ? STANCE_BY_ID[probe.stanceId] : undefined
+  const targetCondition = probe?.targetConditionId
+    ? conditions.find((condition) => condition.id === probe.targetConditionId)
+    : undefined
 
   const handleAction = async (action: ProbeAction, text?: string) => {
     if (pending || revisionPending) return
@@ -54,10 +58,13 @@ export function ProbeSection() {
     setMode('idle')
     setResponse('')
     runProbe()
+    requestAnimationFrame(() => {
+      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
   }
 
   return (
-    <section className="section" aria-labelledby="probe-heading">
+    <section ref={sectionRef} className="section" aria-labelledby="probe-heading">
       <div className="section-head">
         <span className="section-title" id="probe-heading">
           探针 / Probe
@@ -85,8 +92,11 @@ export function ProbeSection() {
             </div>
 
             <div className="probe-target">
-              <span>Target premise</span>
-              {probe.targetPremise}
+              <span className="probe-target-label">Target premise</span>
+              {targetCondition && (
+                <span className="probe-target-pill">目标前提 · {targetCondition.label}</span>
+              )}
+              <span className="probe-target-text">{probe.targetPremise}</span>
             </div>
 
             <p className="probe-objection">{probe.objection}</p>
@@ -114,6 +124,16 @@ export function ProbeSection() {
             <div className="probe-note">
               {probeStance ? probeStance.name : '未选择立场'} · 本地规则
             </div>
+            {probeStance?.sources[0] && (
+              <a
+                className="probe-source"
+                href={probeStance.sources[0].url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {probeStance.sources[0].citation} ↗
+              </a>
+            )}
 
             {probe.status === 'open' && mode === 'idle' && (
               <div className="probe-actions">

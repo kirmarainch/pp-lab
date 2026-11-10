@@ -3393,6 +3393,139 @@ textarea:focus-visible,
   }
 }
 
+/* ---------- domain-specific stance & probe ---------- */
+
+.stance-detail {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+
+.stance-detail-block + .stance-detail-block {
+  margin-top: 10px;
+}
+
+.stance-detail-label {
+  margin-bottom: 5px;
+  color: var(--faint);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.stance-detail ul {
+  margin: 0;
+  padding-left: 15px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.stance-detail li + li {
+  margin-top: 3px;
+}
+
+.stance-limitation {
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.65;
+}
+
+.stance-sources {
+  display: grid;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.stance-source {
+  color: var(--cyan);
+  font-size: 9px;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.stance-source:hover {
+  text-decoration: underline;
+}
+
+.stance-disclaimer {
+  margin: 7px 0 0;
+  color: var(--faint);
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.condition-row.is-targeted {
+  border-color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.condition-row.is-targeted .condition-title {
+  color: var(--text);
+}
+
+.condition-target {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border: 1px solid var(--amber);
+  border-radius: 999px;
+  color: var(--amber);
+  font-size: 7.5px;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.probe-target .probe-target-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.probe-target .probe-target-pill {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 5px;
+  padding: 2px 6px;
+  border: 1px solid var(--amber);
+  border-radius: 999px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.probe-target .probe-target-text {
+  display: block;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 9.5px;
+  letter-spacing: normal;
+  line-height: 1.65;
+  text-transform: none;
+}
+
+.probe-source {
+  display: block;
+  margin-top: 6px;
+  color: var(--cyan);
+  font-size: 8.5px;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.probe-source:hover {
+  text-decoration: underline;
+}
+
 /* ---------- thought map ---------- */
 
 .thought-map {
