@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { CloseIcon } from './Icons'
+import { useDialogFocus } from './useDialogFocus'
 
 interface RevisionDialogProps {
   open: boolean
@@ -21,6 +22,7 @@ export function RevisionDialog({
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
+  const dialogRef = useDialogFocus<HTMLFormElement>(open)
 
   useEffect(() => {
     if (!open) return
@@ -70,6 +72,7 @@ export function RevisionDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         onSubmit={(event) => void handleSubmit(event)}
+        ref={dialogRef}
       >
         <div className="modal-head">
           <div>

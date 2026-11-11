@@ -2,13 +2,20 @@ import { assetUrl } from '../../lib/asset'
 import { exportExperiment } from '../../lib/exportExperiment'
 import { useLabStore } from '../../lib/store'
 import type { Theme } from '../../lib/theme'
-import { DownloadIcon, MoonIcon, SunIcon } from '../ui/Icons'
+import { AiIcon, DownloadIcon, MoonIcon, SunIcon } from '../ui/Icons'
 
 const SAVE_LABEL = {
   idle: '本地模式',
   saving: '正在写入本地',
   saved: '已保存 · 本地',
   error: '本地存储不可用',
+} as const
+
+const AI_CHIP_LABEL = {
+  off: '连接 AI',
+  untested: 'AI 未测试',
+  connected: 'AI 已连接',
+  error: 'AI 连接失败',
 } as const
 
 interface TopBarProps {
@@ -20,6 +27,8 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
   const experiment = useLabStore((state) => state.experiment)
   const saveState = useLabStore((state) => state.saveState)
   const notify = useLabStore((state) => state.notify)
+  const aiStatus = useLabStore((state) => state.aiStatus)
+  const setAiPanelOpen = useLabStore((state) => state.setAiPanelOpen)
 
   const handleExport = () => {
     const current = useLabStore.getState()
@@ -65,7 +74,16 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
           <MoonIcon />
           <span className="theme-toggle-thumb" aria-hidden="true" />
         </button>
-        <span className="chip">LOCAL MODE</span>
+        <button
+          type="button"
+          className={`chip ai-chip is-${aiStatus}`}
+          onClick={() => setAiPanelOpen(true)}
+          title="连接你自己的模型接口，让 AI 现场生成探针"
+          data-ai-status={aiStatus}
+        >
+          <AiIcon />
+          {AI_CHIP_LABEL[aiStatus]}
+        </button>
         <span className="save-status">
           <span
             className={`status-dot ${saveState === 'saving' ? 'is-saving' : ''} ${

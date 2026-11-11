@@ -163,6 +163,8 @@ export const ProbeSchema = z.object({
   question: z.string(),
   status: ProbeStatusSchema,
   response: z.string().optional(),
+  origin: z.enum(['local', 'ai']).optional(),
+  model: z.string().optional(),
 })
 export type Probe = z.infer<typeof ProbeSchema>
 

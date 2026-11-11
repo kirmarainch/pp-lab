@@ -86,3 +86,12 @@ export function MoonIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function AiIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props} strokeLinejoin="round">
+      <path d="M8 1.5 9.7 5.8 14 7.5 9.7 9.2 8 13.5 6.3 9.2 2 7.5 6.3 5.8Z" />
+      <path d="M12.5 1.8v2.4M11.3 3h2.4" />
+    </svg>
+  )
+}

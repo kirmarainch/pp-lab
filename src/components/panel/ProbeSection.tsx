@@ -7,6 +7,8 @@ export function ProbeSection() {
   const experiment = useLabStore((state) => state.experiment)
   const runProbe = useLabStore((state) => state.runProbe)
   const resolveProbe = useLabStore((state) => state.resolveProbe)
+  const probeRunning = useLabStore((state) => state.probeRunning)
+  const aiKey = useLabStore((state) => state.aiKey)
 
   const revisionPending = useLabStore((state) => state.revisionPending)
   const sectionRef = useRef<HTMLElement>(null)
@@ -73,12 +75,12 @@ export function ProbeSection() {
 
       {!probe ? (
         <>
-          <button type="button" className="probe-launch" onClick={handleRunProbe} disabled={pending || revisionPending || mode !== 'idle'}>
+          <button type="button" className={`probe-launch ${probeRunning ? 'is-running' : ''}`} onClick={handleRunProbe} aria-busy={probeRunning} disabled={pending || revisionPending || probeRunning || mode !== 'idle'}>
             <span className="launch-label">
               <ProbeIcon />
-              对当前前提运行探针
+              {probeRunning ? '正在生成异议…' : aiKey ? '让 AI 对当前前提运行探针' : '对当前前提运行探针'}
             </span>
-            <ArrowRightIcon className="arrow" />
+            {probeRunning ? <span className="probe-spinner" aria-hidden="true" /> : <ArrowRightIcon className="arrow" />}
           </button>
         </>
       ) : (
@@ -122,7 +124,8 @@ export function ProbeSection() {
             </div>
 
             <div className="probe-note">
-              {probeStance ? probeStance.name : '未选择立场'} · 本地规则
+              {probeStance ? probeStance.name : '未选择立场'} ·{' '}
+              {probe.origin === 'ai' ? `AI 生成 · ${probe.model ?? '未知模型'}` : '本地规则'}
             </div>
             {probeStance?.sources[0] && (
               <a
@@ -221,12 +224,12 @@ export function ProbeSection() {
 
           {stale && <div className="stale-note">快照已过期。</div>}
 
-          <button type="button" className="probe-launch" onClick={handleRunProbe} disabled={pending || revisionPending || mode !== 'idle'}>
+          <button type="button" className={`probe-launch ${probeRunning ? 'is-running' : ''}`} onClick={handleRunProbe} aria-busy={probeRunning} disabled={pending || revisionPending || probeRunning || mode !== 'idle'}>
             <span className="launch-label">
               <ProbeIcon />
-              {stale ? '对当前前提重新探针' : '再运行一次探针'}
+              {probeRunning ? '正在生成异议…' : stale ? '对当前前提重新探针' : '再运行一次探针'}
             </span>
-            <ArrowRightIcon className="arrow" />
+            {probeRunning ? <span className="probe-spinner" aria-hidden="true" /> : <ArrowRightIcon className="arrow" />}
           </button>
         </>
       )}

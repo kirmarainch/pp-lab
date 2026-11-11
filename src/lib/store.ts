@@ -2,12 +2,22 @@ import { create } from 'zustand'
 import { db } from './db'
 import { createSeedExperiment, initialConditionsNote, SEED_EXPERIMENT_ID } from './seed'
 import { runPremiseProbe } from './probe'
+import {
+  generateAiProbe,
+  loadAiConfig,
+  loadApiKey,
+  saveAiConfig,
+  saveApiKey,
+  validateBaseUrl,
+  type AiConfig,
+} from './ai'
 import { setConditionValue } from './resolveScene'
 import { createRevision, nextRevisionNumber } from './revision'
 import type { Experiment, Probe, ProbeStatus, Revision } from './schema'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 export type ProbeAction = 'respond' | 'revise' | 'retain'
+export type AiStatus = 'off' | 'untested' | 'connected' | 'error'
 
 interface Toast {
   id: number
@@ -22,6 +32,11 @@ interface LabStore {
   saveState: SaveState
   revisionPending: boolean
   toast: Toast | null
+  aiConfig: AiConfig
+  aiKey: string
+  aiStatus: AiStatus
+  aiPanelOpen: boolean
+  probeRunning: boolean
   hydrate: () => Promise<void>
   toggleCondition: (conditionId: string) => void
   updateClaim: (claim: string) => void
@@ -31,6 +46,9 @@ interface LabStore {
   saveVersion: (label: string, reason: string) => Promise<boolean>
   restoreRevision: (revisionId: string) => Promise<boolean>
   selectRevision: (revisionId: string | null) => void
+  setAiPanelOpen: (open: boolean) => void
+  saveAiSettings: (config: AiConfig, key: string, testedOk?: boolean) => boolean
+  disconnectAi: () => void
   notify: (text: string) => void
 }
 
@@ -175,6 +193,11 @@ export const useLabStore = create<LabStore>()((set, get) => {
     saveState: 'idle',
     revisionPending: false,
     toast: null,
+    aiConfig: loadAiConfig(),
+    aiKey: loadApiKey(),
+    aiStatus: loadApiKey() ? 'untested' : 'off',
+    aiPanelOpen: false,
+    probeRunning: false,
 
     hydrate: async () => {
       if (get().hydrated || hydrating) return
@@ -263,14 +286,50 @@ export const useLabStore = create<LabStore>()((set, get) => {
 
     runProbe: () => {
       const experiment = get().experiment
-      if (!experiment || get().revisionPending) return
-      const probe = runPremiseProbe({
+      if (!experiment || get().revisionPending || get().probeRunning) return
+      const localProbe = runPremiseProbe({
         claim: experiment.claim,
         sceneSpec: experiment.sceneSpec,
         stanceId: experiment.stanceId,
       })
-      commit({ ...experiment, probe, updatedAt: Date.now() }, true)
-      notify('探针已生成。')
+      const { aiKey, aiConfig } = get()
+      if (!aiKey) {
+        commit({ ...experiment, probe: localProbe, updatedAt: Date.now() }, true)
+        notify('探针已生成。')
+        return
+      }
+      set({ probeRunning: true })
+      void (async () => {
+        try {
+          const generated = await generateAiProbe(aiConfig, aiKey, {
+            title: experiment.title,
+            claim: experiment.claim,
+            sceneSpec: experiment.sceneSpec,
+            stanceId: experiment.stanceId,
+            targetPremise: localProbe.targetPremise,
+          })
+          const current = get().experiment
+          if (!current) return
+          const probe: Probe = {
+            ...localProbe,
+            objection: generated.objection,
+            question: generated.question,
+            origin: 'ai',
+            model: aiConfig.model.trim(),
+          }
+          commit({ ...current, probe, updatedAt: Date.now() }, true)
+          notify('AI 探针已生成。')
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'AI 探针生成失败。'
+          const current = get().experiment
+          if (current) {
+            commit({ ...current, probe: localProbe, updatedAt: Date.now() }, true)
+          }
+          notify(`${message} 已改用本地探针。`)
+        } finally {
+          set({ probeRunning: false })
+        }
+      })()
     },
 
     resolveProbe: async (action, response, revisedClaim) => {
@@ -371,6 +430,41 @@ export const useLabStore = create<LabStore>()((set, get) => {
     selectRevision: (revisionId) => {
       if (get().revisionPending) return
       set({ selectedRevisionId: revisionId })
+    },
+
+    setAiPanelOpen: (open) => {
+      set({ aiPanelOpen: open })
+    },
+
+    saveAiSettings: (config, key, testedOk = false) => {
+      const urlError = validateBaseUrl(config.baseUrl)
+      if (urlError) {
+        notify(urlError)
+        return false
+      }
+      if (!config.model.trim()) {
+        notify('请填写模型名。')
+        return false
+      }
+      if (!key.trim()) {
+        notify('请填写 API 密钥。')
+        return false
+      }
+      saveAiConfig(config)
+      saveApiKey(key.trim())
+      set({
+        aiConfig: config,
+        aiKey: key.trim(),
+        aiStatus: testedOk ? 'connected' : 'untested',
+      })
+      notify(testedOk ? 'AI 已连接。' : 'AI 设置已保存，建议先测试连接。')
+      return true
+    },
+
+    disconnectAi: () => {
+      saveApiKey('')
+      set({ aiKey: '', aiStatus: 'off' })
+      notify('已断开 AI，探针恢复为本地规则。')
     },
 
     notify,

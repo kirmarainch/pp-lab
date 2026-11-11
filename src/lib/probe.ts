@@ -50,5 +50,6 @@ export function runPremiseProbe(input: ProbeInput): Probe {
     objection: stance?.probeObjection ?? PROBE_PLACEHOLDER.objection,
     question: stance?.lens ?? PROBE_PLACEHOLDER.question,
     status: 'open',
+    origin: 'local',
   }
 }

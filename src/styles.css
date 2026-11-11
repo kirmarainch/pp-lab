@@ -4158,3 +4158,138 @@ textarea:focus-visible,
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---------- AI connection ---------- */
+
+.ai-chip {
+  height: 26px;
+  padding: 0 9px;
+  gap: 5px;
+  background: transparent;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.ai-chip svg {
+  width: 11px;
+  height: 11px;
+}
+
+.ai-chip:hover {
+  border-color: var(--cyan);
+  color: var(--text);
+  background: var(--cyan-soft);
+}
+
+.ai-chip.is-untested {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+.ai-chip.is-connected {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.ai-chip.is-error {
+  color: var(--vermilion);
+  border-color: var(--vermilion);
+}
+
+.ai-modal {
+  width: min(480px, 100%);
+}
+
+.ai-status-line {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.ai-status-line[data-ai-status='connected'] {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+select.field-input {
+  cursor: pointer;
+}
+
+.ai-test-result {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.ai-test-result.is-ok {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: var(--cyan-soft);
+}
+
+.ai-test-result.is-fail {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
+  background: var(--vermilion-soft);
+}
+
+.ai-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-notes p {
+  margin: 0;
+  font-size: 9.5px;
+  line-height: 1.75;
+  color: var(--faint);
+}
+
+.ai-disconnect {
+  margin-right: auto;
+}
+
+.panel-mode.is-ai {
+  color: var(--cyan);
+}
+
+.panel-mode.is-ai .dot {
+  background: var(--cyan);
+  box-shadow: 0 0 8px rgba(99, 214, 226, 0.7);
+}
+
+.probe-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--line-strong);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin-rotate 0.8s linear infinite;
+}
+
+.probe-launch.is-running {
+  border-color: var(--cyan);
+}
+
+@keyframes spin-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar-right > .chip.ai-chip {
+    display: inline-flex;
+  }
+}
