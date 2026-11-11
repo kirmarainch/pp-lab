@@ -2,6 +2,13 @@ import { z } from 'zod'
 
 export const SCENE_SCHEMA_VERSION = '1.0' as const
 
+export const ExperimentFamilySchema = z.enum([
+  'black-box-room',
+  'chinese-room',
+  'experience-machine',
+])
+export type ExperimentFamily = z.infer<typeof ExperimentFamilySchema>
+
 export const ScenePropertyValueSchema = z.union([z.boolean(), z.number(), z.string()])
 export type ScenePropertyValue = z.infer<typeof ScenePropertyValueSchema>
 
@@ -60,7 +67,7 @@ export type SceneAnnotation = z.infer<typeof SceneAnnotationSchema>
 export const SceneSpecSchema = z
   .object({
     schemaVersion: z.literal(SCENE_SCHEMA_VERSION),
-    family: z.literal('black-box-room'),
+    family: ExperimentFamilySchema,
     title: z.string().min(1),
     subtitle: z.string().min(1),
     entities: z.array(SceneEntitySchema).min(1).max(24),
@@ -172,7 +179,7 @@ export const ExperimentSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   subtitle: z.string().min(1),
-  family: z.literal('black-box-room'),
+  family: ExperimentFamilySchema,
   sceneSpec: SceneSpecSchema,
   claim: z.string(),
   stanceId: z.string().nullable(),

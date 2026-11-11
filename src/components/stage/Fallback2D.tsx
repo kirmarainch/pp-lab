@@ -1,4 +1,5 @@
 import type { ResolvedScene } from '../../lib/resolveScene'
+import { FAMILY_LABEL } from '../../lib/templates'
 import type { Theme } from '../../lib/theme'
 
 interface Fallback2DProps {
@@ -394,7 +395,7 @@ export function Fallback2D({ scene, theme }: Fallback2DProps) {
         </g>
 
         <text x="36" y="428" className="fallback-label-sub">
-          SCENE SPEC 1.0 · BLACK BOX ROOM · 2D SCHEMATIC
+          SCENE SPEC 1.0 · {FAMILY_LABEL[scene.spec.family].en.toUpperCase()} · 2D SCHEMATIC
         </text>
         <text x="784" y="428" textAnchor="end" className="fallback-label-sub">
           {scene.spec.conditions.filter((condition) => condition.value).length} /{' '}

@@ -3,6 +3,7 @@ import { describeScene } from '../../lib/narrative'
 import { resolveScene } from '../../lib/resolveScene'
 import type { CameraPreset } from '../../lib/schema'
 import { useLabStore } from '../../lib/store'
+import { FAMILY_LABEL } from '../../lib/templates'
 import type { Theme } from '../../lib/theme'
 import { SceneErrorBoundary } from '../ui/SceneErrorBoundary'
 import { BlackBoxCanvas } from './BlackBoxCanvas'
@@ -65,7 +66,7 @@ export function StagePanel({ theme }: { theme: Theme }) {
     <section
       className="stage-panel"
       data-view={view}
-      aria-label={view === 'map' ? '思想星图' : '黑箱室交互场景'}
+      aria-label={view === 'map' ? '思想星图' : `${FAMILY_LABEL[experiment.family].zh}交互场景`}
     >
       <div className="stage-canvas-host">
         {view === 'map' ? (
@@ -103,7 +104,9 @@ export function StagePanel({ theme }: { theme: Theme }) {
           <div className="stage-title">
             <div className="scene-tag">
               <span className="bracket">[</span>
-              {view === 'map' ? 'Map 01 · Argument Constellation' : 'Scene 01 · Black Box Room'}
+              {view === 'map'
+                ? 'Map 01 · Argument Constellation'
+                : `Scene 01 · ${FAMILY_LABEL[experiment.family].en}`}
               <span className="bracket">]</span>
             </div>
             {view === 'scene' && (

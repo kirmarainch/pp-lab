@@ -4293,3 +4293,358 @@ select.field-input {
     display: inline-flex;
   }
 }
+
+/* ---------- experiment manager ---------- */
+
+.experiment-switcher {
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.experiment-switcher:hover {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.experiment-switcher strong {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.experiment-switcher .switcher-chevron {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  color: var(--faint);
+  transition: color 160ms ease;
+}
+
+.experiment-switcher:hover .switcher-chevron {
+  color: var(--cyan);
+}
+
+.experiments-modal {
+  width: min(560px, 100%);
+}
+
+.exp-new-btn {
+  align-self: flex-start;
+}
+
+.exp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(46vh, 420px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.exp-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.exp-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.exp-list::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 3px;
+}
+
+.exp-list::-webkit-scrollbar-thumb:hover {
+  background: var(--faint);
+}
+
+.exp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.exp-row.is-active {
+  border-color: var(--cyan);
+  background: var(--cyan-soft);
+}
+
+.exp-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.exp-row-main:hover {
+  background: var(--surface-hover);
+}
+
+.exp-row-main:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.exp-row-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exp-badge {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border: 1px solid var(--cyan);
+  border-radius: 4px;
+  color: var(--cyan);
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+}
+
+.exp-row-meta {
+  font-size: 9.5px;
+  letter-spacing: 0.03em;
+  color: var(--faint);
+}
+
+.exp-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.exp-icon-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.exp-icon-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.exp-icon-btn:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.exp-icon-btn.is-danger:hover {
+  color: var(--vermilion);
+  border-color: var(--vermilion);
+  background: var(--vermilion-soft);
+}
+
+.exp-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.exp-icon-btn:disabled:hover {
+  color: var(--muted);
+  border-color: transparent;
+  background: transparent;
+}
+
+.exp-row.is-editing {
+  display: block;
+  padding: 10px;
+}
+
+.exp-rename-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exp-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.exp-confirm p {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.btn-danger {
+  color: var(--vermilion);
+  border-color: var(--vermilion);
+  background: var(--vermilion-soft);
+}
+
+.btn-danger:hover {
+  border-color: var(--vermilion);
+  background: var(--vermilion-soft);
+  box-shadow: none;
+  filter: brightness(1.12);
+}
+
+.exp-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exp-template-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exp-template-fieldset legend {
+  padding: 0;
+}
+
+.exp-template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.exp-template-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.exp-template-card:hover {
+  border-color: var(--faint);
+}
+
+.exp-template-card.is-selected {
+  border-color: var(--cyan);
+  background: var(--cyan-soft);
+}
+
+.exp-template-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.exp-template-card:has(input:focus-visible) {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.exp-template-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.exp-template-en {
+  font-size: 7.5px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.exp-template-tagline {
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  color: var(--cyan);
+}
+
+.exp-template-desc {
+  font-size: 9.5px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.exp-note {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.7;
+  color: var(--faint);
+}
+
+.exp-row-main:focus-visible,
+.exp-icon-btn:focus-visible,
+.experiment-switcher:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+@media (max-width: 960px) {
+  .topbar .crumb.experiment-switcher {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 600px) {
+  .experiment-switcher strong {
+    max-width: 130px;
+  }
+  .exp-template-grid {
+    grid-template-columns: 1fr;
+  }
+  .exp-list {
+    max-height: 52vh;
+  }
+}
+
+.experiment-switcher:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

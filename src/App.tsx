@@ -7,6 +7,7 @@ import { LeftRail } from './components/layout/LeftRail'
 import { BottomTrack } from './components/layout/BottomTrack'
 import { RightPanel } from './components/panel/RightPanel'
 import { AiPanel } from './components/panel/AiPanel'
+import { ExperimentsPanel } from './components/panel/ExperimentsPanel'
 import { StagePanel } from './components/stage/StagePanel'
 import { Toast } from './components/ui/Toast'
 
@@ -25,6 +26,7 @@ export default function App() {
   const hydrate = useLabStore((state) => state.hydrate)
   const hydrated = useLabStore((state) => state.hydrated)
   const aiPanelOpen = useLabStore((state) => state.aiPanelOpen)
+  const experimentsPanelOpen = useLabStore((state) => state.experimentsPanelOpen)
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
 
   useEffect(() => {
@@ -54,6 +56,7 @@ export default function App() {
         <BootScreen />
       )}
       {aiPanelOpen && <AiPanel />}
+      {experimentsPanelOpen && <ExperimentsPanel />}
       <Toast />
     </div>
   )

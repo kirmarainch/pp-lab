@@ -1,8 +1,10 @@
 import { assetUrl } from '../../lib/asset'
 import { exportExperiment } from '../../lib/exportExperiment'
+import { SEED_EXPERIMENT_ID } from '../../lib/seed'
 import { useLabStore } from '../../lib/store'
+import { FAMILY_LABEL } from '../../lib/templates'
 import type { Theme } from '../../lib/theme'
-import { AiIcon, DownloadIcon, MoonIcon, SunIcon } from '../ui/Icons'
+import { AiIcon, ChevronDownIcon, DownloadIcon, MoonIcon, SunIcon } from '../ui/Icons'
 
 const SAVE_LABEL = {
   idle: '本地模式',
@@ -29,6 +31,7 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
   const notify = useLabStore((state) => state.notify)
   const aiStatus = useLabStore((state) => state.aiStatus)
   const setAiPanelOpen = useLabStore((state) => state.setAiPanelOpen)
+  const setExperimentsPanelOpen = useLabStore((state) => state.setExperimentsPanelOpen)
 
   const handleExport = () => {
     const current = useLabStore.getState()
@@ -49,16 +52,26 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
           </span>
         </div>
         <div className="topbar-divider" aria-hidden="true" />
-        <div className="crumb">
-          <span>黑箱室</span>
+        <button
+          type="button"
+          className="crumb experiment-switcher"
+          onClick={() => setExperimentsPanelOpen(true)}
+          title="创建、切换与管理实验"
+          aria-haspopup="dialog"
+          data-testid="experiment-switcher"
+          disabled={!experiment}
+        >
+          <span>{experiment ? FAMILY_LABEL[experiment.family].zh : '实验'}</span>
           <span className="sep">/</span>
           <strong>{experiment?.title ?? '正在载入'}</strong>
-          <span className="chip">
-            <span className="dot" aria-hidden="true" />
-            示例种子
-          </span>
-          <span className="chip optional">SPEC 1.0</span>
-        </div>
+          {experiment?.id === SEED_EXPERIMENT_ID && (
+            <span className="chip">
+              <span className="dot" aria-hidden="true" />
+              示例种子
+            </span>
+          )}
+          <ChevronDownIcon className="switcher-chevron" />
+        </button>
       </div>
 
       <div className="topbar-right">

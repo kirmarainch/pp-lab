@@ -95,3 +95,40 @@ export function AiIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="m4 6 4 4 4-4" />
+    </svg>
+  )
+}
+
+export function CopyIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="5.5" y="5.5" width="8" height="8" />
+      <path d="M10.5 5.5v-3h-8v8h3" />
+    </svg>
+  )
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M2.5 4h11" />
+      <path d="M6 4V2.5h4V4" />
+      <path d="M4 4l.7 9.5h6.6L12 4" />
+      <path d="M6.5 6.5v4.5M9.5 6.5v4.5" />
+    </svg>
+  )
+}
+
+export function EditIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M10.5 2.5l3 3L6 13H3v-3l7.5-7.5Z" />
+      <path d="M9 4l3 3" />
+    </svg>
+  )
+}

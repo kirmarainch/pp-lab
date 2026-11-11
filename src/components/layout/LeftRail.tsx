@@ -1,4 +1,6 @@
+import { SEED_EXPERIMENT_ID } from '../../lib/seed'
 import { useLabStore } from '../../lib/store'
+import { FAMILY_LABEL } from '../../lib/templates'
 
 export function LeftRail() {
   const experiment = useLabStore((state) => state.experiment)
@@ -23,12 +25,12 @@ export function LeftRail() {
         <article className="experiment-card">
           <div className="experiment-family">
             <span className="dot" aria-hidden="true" />
-            黑箱室 · Black Box Room
+            {FAMILY_LABEL[experiment.family].zh} · {FAMILY_LABEL[experiment.family].en}
           </div>
           <h2>{sceneSpec.title}</h2>
           <div className="en">{sceneSpec.subtitle}</div>
           <div className="experiment-meta">
-            <span>SEED 01</span>
+            <span>{experiment.id === SEED_EXPERIMENT_ID ? 'SEED 01' : 'CUSTOM'}</span>
             <span>{sceneSpec.conditions.length} PREMISES</span>
           </div>
         </article>

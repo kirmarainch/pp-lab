@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { db } from './db'
-import { createSeedExperiment, initialConditionsNote, SEED_EXPERIMENT_ID } from './seed'
+import { createSeedExperiment, initialConditionsNote } from './seed'
+import { createExperimentFromTemplate, FAMILY_LABEL } from './templates'
+import { newId } from './id'
 import { runPremiseProbe } from './probe'
 import {
   generateAiProbe,
@@ -13,11 +15,38 @@ import {
 } from './ai'
 import { setConditionValue } from './resolveScene'
 import { createRevision, nextRevisionNumber } from './revision'
-import type { Experiment, Probe, ProbeStatus, Revision } from './schema'
+import type { Experiment, ExperimentFamily, Probe, ProbeStatus, Revision } from './schema'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 export type ProbeAction = 'respond' | 'revise' | 'retain'
 export type AiStatus = 'off' | 'untested' | 'connected' | 'error'
+
+export interface ExperimentSummary {
+  id: string
+  title: string
+  subtitle: string
+  family: ExperimentFamily
+  updatedAt: number
+  revisionCount: number
+}
+
+const ACTIVE_EXPERIMENT_KEY = 'pp-lab.activeExperiment'
+
+function loadActiveExperimentId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_EXPERIMENT_KEY)
+  } catch {
+    return null
+  }
+}
+
+function saveActiveExperimentId(id: string) {
+  try {
+    localStorage.setItem(ACTIVE_EXPERIMENT_KEY, id)
+  } catch {
+    // 隐私模式下 localStorage 不可用时，仅本次会话记住选择。
+  }
+}
 
 interface Toast {
   id: number
@@ -27,6 +56,7 @@ interface Toast {
 interface LabStore {
   experiment: Experiment | null
   revisions: Revision[]
+  experiments: ExperimentSummary[]
   selectedRevisionId: string | null
   hydrated: boolean
   saveState: SaveState
@@ -36,6 +66,7 @@ interface LabStore {
   aiKey: string
   aiStatus: AiStatus
   aiPanelOpen: boolean
+  experimentsPanelOpen: boolean
   probeRunning: boolean
   hydrate: () => Promise<void>
   toggleCondition: (conditionId: string) => void
@@ -47,6 +78,12 @@ interface LabStore {
   restoreRevision: (revisionId: string) => Promise<boolean>
   selectRevision: (revisionId: string | null) => void
   setAiPanelOpen: (open: boolean) => void
+  setExperimentsPanelOpen: (open: boolean) => void
+  switchExperiment: (id: string) => Promise<boolean>
+  createExperiment: (family: ExperimentFamily, title: string) => Promise<boolean>
+  renameExperiment: (id: string, title: string, subtitle: string) => Promise<boolean>
+  duplicateExperiment: (id: string) => Promise<boolean>
+  deleteExperiment: (id: string) => Promise<boolean>
   saveAiSettings: (config: AiConfig, key: string, testedOk?: boolean) => boolean
   disconnectAi: () => void
   notify: (text: string) => void
@@ -125,6 +162,60 @@ export const useLabStore = create<LabStore>()((set, get) => {
     }, 280)
   }
 
+  const loadExperiment = async (id: string) => {
+    const experiment = await db.experiments.get(id)
+    if (!experiment) return null
+    let revisions = await db.revisions.where('experimentId').equals(id).sortBy('version')
+    if (revisions.length === 0) {
+      const initial = createRevision(experiment, 1, '初始状态', initialConditionsNote(experiment))
+      await enqueueWrite(async () => {
+        await db.revisions.put(initial)
+      })
+      revisions = [initial]
+    }
+    return { experiment, revisions }
+  }
+
+  const buildSummaries = async (experiments: Experiment[]): Promise<ExperimentSummary[]> => {
+    const summaries = await Promise.all(
+      experiments.map(async (experiment) => ({
+        id: experiment.id,
+        title: experiment.title,
+        subtitle: experiment.subtitle,
+        family: experiment.family,
+        updatedAt: experiment.updatedAt,
+        revisionCount: await db.revisions.where('experimentId').equals(experiment.id).count(),
+      })),
+    )
+    return summaries.sort((a, b) => b.updatedAt - a.updatedAt)
+  }
+
+  const refreshSummaries = async () => {
+    try {
+      const all = await db.experiments.toArray()
+      set({ experiments: await buildSummaries(all) })
+    } catch {
+      // 列表刷新失败不影响当前实验；下次打开面板时再试。
+    }
+  }
+
+  const flushCurrentDraft = async () => {
+    cancelSaveTimer()
+    await writeQueue
+    const current = get().experiment
+    if (current && get().saveState !== 'saved') await persistNow(current)
+  }
+
+  const activate = (loaded: { experiment: Experiment; revisions: Revision[] }) => {
+    saveActiveExperimentId(loaded.experiment.id)
+    set({
+      experiment: loaded.experiment,
+      revisions: loaded.revisions,
+      selectedRevisionId: loaded.revisions.at(-1)?.id ?? null,
+      saveState: 'saved',
+    })
+  }
+
   const commit = (experiment: Experiment, immediate = false) => {
     if (get().revisionPending) return
     set({ experiment, saveState: 'saving' })
@@ -165,6 +256,15 @@ export const useLabStore = create<LabStore>()((set, get) => {
       set({
         experiment: change.experiment,
         revisions: [...revisions, change.revision],
+        experiments: get().experiments.map((summary) =>
+          summary.id === change.experiment.id
+            ? {
+                ...summary,
+                updatedAt: change.experiment.updatedAt,
+                revisionCount: revisions.length + 1,
+              }
+            : summary,
+        ),
         selectedRevisionId: change.revision.id,
         saveState: 'saved',
       })
@@ -188,6 +288,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
   return {
     experiment: null,
     revisions: [],
+    experiments: [],
     selectedRevisionId: null,
     hydrated: false,
     saveState: 'idle',
@@ -197,42 +298,31 @@ export const useLabStore = create<LabStore>()((set, get) => {
     aiKey: loadApiKey(),
     aiStatus: loadApiKey() ? 'untested' : 'off',
     aiPanelOpen: false,
+    experimentsPanelOpen: false,
     probeRunning: false,
 
     hydrate: async () => {
       if (get().hydrated || hydrating) return
       hydrating = true
       try {
-        const stored = await db.experiments.get(SEED_EXPERIMENT_ID)
-        const experiment = stored ?? createSeedExperiment()
-        if (!stored) {
+        let all = await db.experiments.orderBy('updatedAt').reverse().toArray()
+        if (all.length === 0) {
+          const seed = createSeedExperiment()
           await enqueueWrite(async () => {
-            await db.experiments.put(experiment)
+            await db.experiments.put(seed)
           })
+          all = [seed]
         }
-
-        let revisions = await db.revisions
-          .where('experimentId')
-          .equals(experiment.id)
-          .sortBy('version')
-
-        if (revisions.length === 0) {
-          const initial = createRevision(
-            experiment,
-            1,
-            '初始状态',
-            initialConditionsNote(experiment),
-          )
-          await enqueueWrite(async () => {
-            await db.revisions.put(initial)
-          })
-          revisions = [initial]
-        }
-
+        const activeId = loadActiveExperimentId()
+        const active = all.find((item) => item.id === activeId) ?? all[0]
+        const loaded = await loadExperiment(active.id)
+        if (!loaded) throw new Error('实验读取失败。')
+        saveActiveExperimentId(active.id)
         set({
-          experiment,
-          revisions,
-          selectedRevisionId: revisions.at(-1)?.id ?? null,
+          experiment: loaded.experiment,
+          revisions: loaded.revisions,
+          experiments: await buildSummaries(all),
+          selectedRevisionId: loaded.revisions.at(-1)?.id ?? null,
           hydrated: true,
           saveState: 'saved',
         })
@@ -247,6 +337,16 @@ export const useLabStore = create<LabStore>()((set, get) => {
         set({
           experiment,
           revisions: [initial],
+          experiments: [
+            {
+              id: experiment.id,
+              title: experiment.title,
+              subtitle: experiment.subtitle,
+              family: experiment.family,
+              updatedAt: experiment.updatedAt,
+              revisionCount: 1,
+            },
+          ],
           selectedRevisionId: initial.id,
           hydrated: true,
           saveState: 'error',
@@ -299,6 +399,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
         return
       }
       set({ probeRunning: true })
+      const experimentId = experiment.id
       void (async () => {
         try {
           const generated = await generateAiProbe(aiConfig, aiKey, {
@@ -309,7 +410,8 @@ export const useLabStore = create<LabStore>()((set, get) => {
             targetPremise: localProbe.targetPremise,
           })
           const current = get().experiment
-          if (!current) return
+          // 生成期间用户可能切换了实验；结果只写回发起时的那个实验。
+          if (!current || current.id !== experimentId) return
           const probe: Probe = {
             ...localProbe,
             objection: generated.objection,
@@ -322,9 +424,8 @@ export const useLabStore = create<LabStore>()((set, get) => {
         } catch (error) {
           const message = error instanceof Error ? error.message : 'AI 探针生成失败。'
           const current = get().experiment
-          if (current) {
-            commit({ ...current, probe: localProbe, updatedAt: Date.now() }, true)
-          }
+          if (!current || current.id !== experimentId) return
+          commit({ ...current, probe: localProbe, updatedAt: Date.now() }, true)
           notify(`${message} 已改用本地探针。`)
         } finally {
           set({ probeRunning: false })
@@ -434,6 +535,168 @@ export const useLabStore = create<LabStore>()((set, get) => {
 
     setAiPanelOpen: (open) => {
       set({ aiPanelOpen: open })
+    },
+
+    setExperimentsPanelOpen: (open) => {
+      set({ experimentsPanelOpen: open })
+      if (open) void refreshSummaries()
+    },
+
+    switchExperiment: async (id) => {
+      if (get().revisionPending) return false
+      if (get().experiment?.id === id) return true
+      try {
+        await flushCurrentDraft()
+        const loaded = await loadExperiment(id)
+        if (!loaded) {
+          notify('没有找到这个实验。')
+          return false
+        }
+        activate(loaded)
+        return true
+      } catch {
+        notify('无法读取本地存储，切换失败。')
+        return false
+      }
+    },
+
+    createExperiment: async (family, title) => {
+      const cleanTitle = title.trim().slice(0, 40)
+      if (!cleanTitle) {
+        notify('请先填写实验名称。')
+        return false
+      }
+      if (get().revisionPending) return false
+      try {
+        await flushCurrentDraft()
+        const experiment = createExperimentFromTemplate(family, cleanTitle)
+        const initial = createRevision(
+          experiment,
+          1,
+          '初始状态',
+          `从模板「${FAMILY_LABEL[family].zh}」创建。`,
+        )
+        await enqueueWrite(async () => {
+          await db.transaction('rw', db.experiments, db.revisions, async () => {
+            await db.experiments.put(experiment)
+            await db.revisions.put(initial)
+          })
+        })
+        activate({ experiment, revisions: [initial] })
+        await refreshSummaries()
+        notify(`已创建「${experiment.title}」。`)
+        return true
+      } catch {
+        notify('无法写入本地存储，创建失败。')
+        return false
+      }
+    },
+
+    renameExperiment: async (id, title, subtitle) => {
+      const cleanTitle = title.trim().slice(0, 40)
+      if (!cleanTitle) {
+        notify('请先填写实验名称。')
+        return false
+      }
+      if (get().revisionPending) return false
+      try {
+        await flushCurrentDraft()
+        const current = get().experiment
+        const source = current?.id === id ? current : await db.experiments.get(id)
+        if (!source) {
+          notify('没有找到这个实验。')
+          return false
+        }
+        const cleanSubtitle = subtitle.trim().slice(0, 60) || source.subtitle
+        const next: Experiment = {
+          ...source,
+          title: cleanTitle,
+          subtitle: cleanSubtitle,
+          sceneSpec: { ...source.sceneSpec, title: cleanTitle, subtitle: cleanSubtitle },
+          updatedAt: Date.now(),
+        }
+        await enqueueWrite(async () => {
+          await db.experiments.put(next)
+        })
+        if (current?.id === id) set({ experiment: next, saveState: 'saved' })
+        await refreshSummaries()
+        notify(`已重命名为「${cleanTitle}」。`)
+        return true
+      } catch {
+        notify('无法写入本地存储，重命名失败。')
+        return false
+      }
+    },
+
+    duplicateExperiment: async (id) => {
+      if (get().revisionPending) return false
+      try {
+        await flushCurrentDraft()
+        const current = get().experiment
+        const source = current?.id === id ? current : await db.experiments.get(id)
+        if (!source) {
+          notify('没有找到这个实验。')
+          return false
+        }
+        const now = Date.now()
+        const copyTitle = `${source.title} 副本`.slice(0, 40)
+        const copy: Experiment = {
+          ...structuredClone(source),
+          id: newId('exp'),
+          title: copyTitle,
+          createdAt: now,
+          updatedAt: now,
+        }
+        copy.sceneSpec = { ...copy.sceneSpec, title: copyTitle }
+        const initial = createRevision(copy, 1, '初始状态', `从「${source.title}」复制当前状态。`)
+        await enqueueWrite(async () => {
+          await db.transaction('rw', db.experiments, db.revisions, async () => {
+            await db.experiments.put(copy)
+            await db.revisions.put(initial)
+          })
+        })
+        activate({ experiment: copy, revisions: [initial] })
+        await refreshSummaries()
+        notify(`已复制为「${copy.title}」。`)
+        return true
+      } catch {
+        notify('无法写入本地存储，复制失败。')
+        return false
+      }
+    },
+
+    deleteExperiment: async (id) => {
+      if (get().revisionPending) return false
+      try {
+        await flushCurrentDraft()
+        const all = await db.experiments.orderBy('updatedAt').reverse().toArray()
+        const target = all.find((item) => item.id === id)
+        if (!target) {
+          notify('没有找到这个实验。')
+          return false
+        }
+        if (all.length <= 1) {
+          notify('至少保留一个实验。')
+          return false
+        }
+        await enqueueWrite(async () => {
+          await db.transaction('rw', db.experiments, db.revisions, async () => {
+            await db.experiments.delete(id)
+            await db.revisions.where('experimentId').equals(id).delete()
+          })
+        })
+        if (get().experiment?.id === id) {
+          const next = all.find((item) => item.id !== id)
+          const loaded = next ? await loadExperiment(next.id) : null
+          if (loaded) activate(loaded)
+        }
+        await refreshSummaries()
+        notify(`已删除「${target.title}」及其版本记录。`)
+        return true
+      } catch {
+        notify('无法写入本地存储，删除失败。')
+        return false
+      }
     },
 
     saveAiSettings: (config, key, testedOk = false) => {
