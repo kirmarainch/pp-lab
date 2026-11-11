@@ -9,21 +9,28 @@ import { useDialogFocus } from '../ui/useDialogFocus'
 export function ExperimentsPanel() {
   const experiments = useLabStore((state) => state.experiments)
   const activeId = useLabStore((state) => state.experiment?.id)
+  const aiKey = useLabStore((state) => state.aiKey)
+  const aiConfig = useLabStore((state) => state.aiConfig)
+  const setAiPanelOpen = useLabStore((state) => state.setAiPanelOpen)
   const setExperimentsPanelOpen = useLabStore((state) => state.setExperimentsPanelOpen)
   const switchExperiment = useLabStore((state) => state.switchExperiment)
   const createExperiment = useLabStore((state) => state.createExperiment)
+  const createExperimentFromAi = useLabStore((state) => state.createExperimentFromAi)
   const renameExperiment = useLabStore((state) => state.renameExperiment)
   const duplicateExperiment = useLabStore((state) => state.duplicateExperiment)
   const deleteExperiment = useLabStore((state) => state.deleteExperiment)
 
   const titleId = useId()
   const nameId = useId()
+  const aiDescriptionId = useId()
   const renameTitleId = useId()
   const renameSubtitleId = useId()
 
   const [creating, setCreating] = useState(false)
+  const [createMode, setCreateMode] = useState<'template' | 'ai'>('template')
   const [createTitle, setCreateTitle] = useState('')
   const [createFamily, setCreateFamily] = useState<ExperimentFamily>('black-box-room')
+  const [aiDescription, setAiDescription] = useState('')
   const [createError, setCreateError] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
@@ -56,6 +63,28 @@ export function ExperimentsPanel() {
 
   const handleCreate = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (createMode === 'ai') {
+      if (!aiKey) {
+        setCreateError('请先连接 AI。')
+        return
+      }
+      if (aiDescription.trim().length < 10) {
+        setCreateError('描述至少写 10 个字，说清楚实验里有什么、争的是什么。')
+        return
+      }
+      setCreateError('')
+      setBusy(true)
+      void (async () => {
+        try {
+          const result = await createExperimentFromAi(aiDescription, createTitle)
+          if (result.ok) close()
+          else setCreateError(result.message ?? 'AI 生成失败，请重试。')
+        } finally {
+          setBusy(false)
+        }
+      })()
+      return
+    }
     if (!createTitle.trim()) {
       setCreateError('请先填写实验名称。')
       return
@@ -106,10 +135,35 @@ export function ExperimentsPanel() {
 
         {creating ? (
           <form className="exp-create-form" onSubmit={handleCreate}>
+            <div className="segmented exp-create-mode" role="group" aria-label="创建方式">
+              <button
+                type="button"
+                aria-pressed={createMode === 'template'}
+                onClick={() => {
+                  setCreateMode('template')
+                  setCreateError('')
+                }}
+                disabled={busy}
+              >
+                从模板创建
+              </button>
+              <button
+                type="button"
+                aria-pressed={createMode === 'ai'}
+                onClick={() => {
+                  setCreateMode('ai')
+                  setCreateError('')
+                }}
+                disabled={busy}
+              >
+                用 AI 生成
+              </button>
+            </div>
+
             <label className="modal-field" htmlFor={nameId}>
               <span className="modal-field-label">
                 <span>实验名称</span>
-                <span>之后可随时重命名</span>
+                <span>{createMode === 'ai' ? '可留空，由 AI 命名' : '之后可随时重命名'}</span>
               </span>
               <input
                 id={nameId}
@@ -126,32 +180,83 @@ export function ExperimentsPanel() {
               />
             </label>
 
-            <fieldset className="exp-template-fieldset">
-              <legend className="modal-field-label">选择模板</legend>
-              <div className="exp-template-grid" role="radiogroup" aria-label="实验模板">
-                {EXPERIMENT_TEMPLATES.map((template) => (
-                  <label
-                    key={template.family}
-                    className={`exp-template-card ${createFamily === template.family ? 'is-selected' : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name="experiment-template"
-                      value={template.family}
-                      checked={createFamily === template.family}
-                      onChange={() => setCreateFamily(template.family)}
+            {createMode === 'ai' ? (
+              aiKey ? (
+                <>
+                  <p className="exp-ai-model">
+                    将使用 <strong>{aiConfig.model.trim() || '未命名模型'}</strong>{' '}
+                    生成 · 费用由你的服务商按 token 收取
+                  </p>
+                  <label className="modal-field" htmlFor={aiDescriptionId}>
+                    <span className="modal-field-label">
+                      <span>描述你的思想实验</span>
+                      <span>{aiDescription.length}/600</span>
+                    </span>
+                    <textarea
+                      id={aiDescriptionId}
+                      className="field-input exp-ai-input"
+                      value={aiDescription}
+                      onChange={(event) => {
+                        setAiDescription(event.target.value)
+                        if (createError) setCreateError('')
+                      }}
+                      placeholder="说清楚：实验里有什么对象、谁在观察或检验、争的是什么。例如：一台机器能完美模拟我已故亲人的对话，我知道它是程序，但每次回应都恰到好处——它算不算在安慰我？"
+                      maxLength={600}
+                      rows={5}
                       disabled={busy}
                     />
-                    <span className="exp-template-name">
-                      {template.name}
-                      <span className="exp-template-en">{FAMILY_LABEL[template.family].en}</span>
-                    </span>
-                    <span className="exp-template-tagline">{template.tagline}</span>
-                    <span className="exp-template-desc">{template.description}</span>
                   </label>
-                ))}
-              </div>
-            </fieldset>
+                  <p className="exp-note">
+                    AI 会把描述拆解成场景组件和前提条件，自动配置互动页面。生成后可以在舞台右上角「自定义场景」里手动调整。
+                  </p>
+                </>
+              ) : (
+                <div className="exp-ai-gate">
+                  <p>
+                    AI 生成会用你自己的模型接口，把描述拆解成场景组件和条件开关。先在顶栏「连接
+                    AI」里填写密钥；不连接也可以用模板创建，再手动自定义。
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={() => {
+                      close()
+                      setAiPanelOpen(true)
+                    }}
+                    disabled={busy}
+                  >
+                    去连接 AI
+                  </button>
+                </div>
+              )
+            ) : (
+              <fieldset className="exp-template-fieldset">
+                <legend className="modal-field-label">选择模板</legend>
+                <div className="exp-template-grid" role="radiogroup" aria-label="实验模板">
+                  {EXPERIMENT_TEMPLATES.map((template) => (
+                    <label
+                      key={template.family}
+                      className={`exp-template-card ${createFamily === template.family ? 'is-selected' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="experiment-template"
+                        value={template.family}
+                        checked={createFamily === template.family}
+                        onChange={() => setCreateFamily(template.family)}
+                        disabled={busy}
+                      />
+                      <span className="exp-template-name">
+                        {template.name}
+                        <span className="exp-template-en">{FAMILY_LABEL[template.family].en}</span>
+                      </span>
+                      <span className="exp-template-tagline">{template.tagline}</span>
+                      <span className="exp-template-desc">{template.description}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
 
             {createError && (
               <div className="form-error" role="alert">
@@ -169,7 +274,13 @@ export function ExperimentsPanel() {
                 返回
               </button>
               <button type="submit" className="btn btn-sm btn-primary" disabled={busy}>
-                {busy ? '正在创建' : '创建并打开'}
+                {busy
+                  ? createMode === 'ai'
+                    ? 'AI 正在分析实验结构…'
+                    : '正在创建'
+                  : createMode === 'ai'
+                    ? '生成并打开'
+                    : '创建并打开'}
               </button>
             </div>
           </form>

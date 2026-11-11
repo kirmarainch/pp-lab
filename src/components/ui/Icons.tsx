@@ -132,3 +132,12 @@ export function EditIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function SlidersIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3.5 2.5v11M8 2.5v11M12.5 2.5v11" />
+      <path d="M1.8 5.5h3.4M6.3 9.5h3.4M10.8 4h3.4" />
+    </svg>
+  )
+}

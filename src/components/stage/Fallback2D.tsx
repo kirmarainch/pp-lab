@@ -1,4 +1,5 @@
-import type { ResolvedScene } from '../../lib/resolveScene'
+import { entityIdByKind, readNumberProp, type ResolvedScene } from '../../lib/resolveScene'
+import type { SceneEntity } from '../../lib/schema'
 import { FAMILY_LABEL } from '../../lib/templates'
 import type { Theme } from '../../lib/theme'
 
@@ -28,19 +29,33 @@ const FALLBACK_COLORS = {
 
 export function Fallback2D({ scene, theme }: Fallback2DProps) {
   const colors = FALLBACK_COLORS[theme]
-  const isOn = (conditionId: string) =>
-    scene.spec.conditions.find((condition) => condition.id === conditionId)?.value ?? false
+  const entityOf = (kind: SceneEntity['kind']) =>
+    scene.spec.entities.find((entity) => entity.kind === kind)
 
-  const interpretable = isOn('interpretable')
-  const verifiable = isOn('verifiable')
-  const hasReasons = isOn('has-reasons')
-  const channelOpacity = interpretable ? 1 : 0.38
+  const monolith = entityOf('monolith')
+  const core = entityOf('core')
+  const channel = entityOf('channel')
+  const observer = entityOf('observer')
+  const verifier = entityOf('verifier')
+  const reasonRing = entityOf('reason-ring')
 
-  const labelFor = (entityId: string, fallback: string) =>
-    scene.annotations.find((annotation) => annotation.entityId === entityId)?.text ?? fallback
-  const sublabelFor = (entityId: string, fallback: string) =>
-    scene.annotations.find((annotation) => annotation.entityId === entityId)?.sublabel ??
-    fallback
+  const interpretable =
+    readNumberProp(scene, entityIdByKind(scene, 'monolith'), 'opacity', 1) < 0.5
+  const verifiable =
+    readNumberProp(scene, entityIdByKind(scene, 'verifier'), 'scale', 0) > 0.5
+  const hasReasons =
+    readNumberProp(scene, entityIdByKind(scene, 'reason-ring'), 'scale', 0) > 0.5
+  const channelOpacity = readNumberProp(
+    scene,
+    entityIdByKind(scene, 'channel'),
+    'opacity',
+    0.38,
+  )
+
+  const labelFor = (kind: SceneEntity['kind'], fallback: string) =>
+    entityOf(kind)?.label ?? fallback
+  const sublabelFor = (kind: SceneEntity['kind'], fallback: string) =>
+    entityOf(kind)?.caption ?? fallback
 
   return (
     <div className="fallback-2d" aria-hidden="true">
@@ -125,6 +140,7 @@ export function Fallback2D({ scene, theme }: Fallback2DProps) {
         />
 
         {/* independent verification */}
+        {verifier && (
         <g opacity={verifiable ? 1 : 0.16}>
           <path
             d="M212 236C260 222 312 226 354 234"
@@ -167,9 +183,10 @@ export function Fallback2D({ scene, theme }: Fallback2DProps) {
             {verifiable ? 'ON' : 'OFF'}
           </text>
         </g>
+        )}
 
         {/* stated reasons */}
-        {hasReasons && (
+        {hasReasons && reasonRing && (
           <g>
             <ellipse
               cx="410"
@@ -196,15 +213,16 @@ export function Fallback2D({ scene, theme }: Fallback2DProps) {
             <circle cx="463" cy="70" r="2" fill="rgba(220,169,78,0.9)" />
             <circle cx="427" cy="59" r="1.5" fill="rgba(233,229,218,0.65)" />
             <text x="478" y="66" className="fallback-label">
-              {labelFor('reasonRing', '对象 C')}
+              {labelFor('reason-ring', '对象 C')}
             </text>
             <text x="478" y="78" className="fallback-label-sub">
-              {sublabelFor('reasonRing', 'OBJECT C')} · ON
+              {sublabelFor('reason-ring', 'OBJECT C')} · ON
             </text>
           </g>
         )}
 
         {/* channel */}
+        {channel && (
         <g opacity={channelOpacity}>
           <path
             d="M466 218C518 190 568 214 618 251"
@@ -224,8 +242,10 @@ export function Fallback2D({ scene, theme }: Fallback2DProps) {
             {sublabelFor('channel', 'OBJECT D')}
           </text>
         </g>
+        )}
 
         {/* monolith */}
+        {monolith && (
         <g transform="translate(410 230)">
           <ellipse cx="0" cy="105" rx="74" ry="12" fill="rgba(0,0,0,0.45)" />
           <ellipse cx="0" cy="102" rx="70" ry="9" fill="none" stroke="rgba(99,214,226,0.22)" />
@@ -318,8 +338,9 @@ export function Fallback2D({ scene, theme }: Fallback2DProps) {
             />
           )}
         </g>
+        )}
 
-        {interpretable && (
+        {interpretable && core && (
           <g>
             <path d="M352 214H314" stroke="rgba(99,214,226,0.35)" strokeDasharray="2 3" />
             <text x="308" y="212" textAnchor="end" className="fallback-label">
@@ -331,14 +352,19 @@ export function Fallback2D({ scene, theme }: Fallback2DProps) {
           </g>
         )}
 
-        <text x="410" y="118" textAnchor="middle" className="fallback-label">
-          {labelFor('monolith', '对象 A')}
-        </text>
-        <text x="410" y="130" textAnchor="middle" className="fallback-label-sub">
-          {sublabelFor('monolith', 'OBJECT A')}
-        </text>
+        {monolith && (
+          <>
+            <text x="410" y="118" textAnchor="middle" className="fallback-label">
+              {labelFor('monolith', '对象 A')}
+            </text>
+            <text x="410" y="130" textAnchor="middle" className="fallback-label-sub">
+              {sublabelFor('monolith', 'OBJECT A')}
+            </text>
+          </>
+        )}
 
         {/* observer */}
+        {observer && (
         <g>
           <ellipse cx="680" cy="326" rx="36" ry="9" fill="rgba(0,0,0,0.4)" />
           <ellipse cx="680" cy="326" rx="30" ry="6" fill="none" stroke="rgba(232,227,215,0.12)" />
@@ -393,6 +419,7 @@ export function Fallback2D({ scene, theme }: Fallback2DProps) {
             {sublabelFor('observer', 'OBJECT E')}
           </text>
         </g>
+        )}
 
         <text x="36" y="428" className="fallback-label-sub">
           SCENE SPEC 1.0 · {FAMILY_LABEL[scene.spec.family].en.toUpperCase()} · 2D SCHEMATIC

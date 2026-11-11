@@ -6,6 +6,7 @@ import { newId } from './id'
 import { runPremiseProbe } from './probe'
 import {
   generateAiProbe,
+  generateAiScene,
   loadAiConfig,
   loadApiKey,
   saveAiConfig,
@@ -13,9 +14,10 @@ import {
   validateBaseUrl,
   type AiConfig,
 } from './ai'
+import { assembleScene, createExperimentFromDraft, type SceneDraft } from './sceneDraft'
 import { setConditionValue } from './resolveScene'
 import { createRevision, nextRevisionNumber } from './revision'
-import type { Experiment, ExperimentFamily, Probe, ProbeStatus, Revision } from './schema'
+import type { Experiment, ExperimentFamily, Probe, ProbeStatus, Revision, SceneSpec } from './schema'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 export type ProbeAction = 'respond' | 'revise' | 'retain'
@@ -67,6 +69,7 @@ interface LabStore {
   aiStatus: AiStatus
   aiPanelOpen: boolean
   experimentsPanelOpen: boolean
+  sceneEditorOpen: boolean
   probeRunning: boolean
   hydrate: () => Promise<void>
   toggleCondition: (conditionId: string) => void
@@ -79,6 +82,12 @@ interface LabStore {
   selectRevision: (revisionId: string | null) => void
   setAiPanelOpen: (open: boolean) => void
   setExperimentsPanelOpen: (open: boolean) => void
+  setSceneEditorOpen: (open: boolean) => void
+  applySceneDraft: (draft: SceneDraft) => Promise<boolean>
+  createExperimentFromAi: (
+    description: string,
+    titleOverride: string,
+  ) => Promise<{ ok: boolean; message?: string }>
   switchExperiment: (id: string) => Promise<boolean>
   createExperiment: (family: ExperimentFamily, title: string) => Promise<boolean>
   renameExperiment: (id: string, title: string, subtitle: string) => Promise<boolean>
@@ -299,6 +308,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
     aiStatus: loadApiKey() ? 'untested' : 'off',
     aiPanelOpen: false,
     experimentsPanelOpen: false,
+    sceneEditorOpen: false,
     probeRunning: false,
 
     hydrate: async () => {
@@ -540,6 +550,90 @@ export const useLabStore = create<LabStore>()((set, get) => {
     setExperimentsPanelOpen: (open) => {
       set({ experimentsPanelOpen: open })
       if (open) void refreshSummaries()
+    },
+
+    setSceneEditorOpen: (open) => {
+      set({ sceneEditorOpen: open })
+    },
+
+    applySceneDraft: async (draft) => {
+      if (!get().experiment || get().revisionPending) return false
+      let sceneSpec: SceneSpec
+      try {
+        sceneSpec = assembleScene(draft)
+      } catch {
+        notify('场景结构不合法，请检查组件与条件。')
+        return false
+      }
+      return commitRevision((experiment, revisions) => {
+        const next: Experiment = {
+          ...experiment,
+          title: draft.title,
+          subtitle: draft.subtitle,
+          family: draft.family,
+          sceneSpec,
+          updatedAt: Date.now(),
+        }
+        const version = nextRevisionNumber(revisions)
+        return {
+          experiment: next,
+          revision: createRevision(
+            next,
+            version,
+            '自定义场景',
+            `调整场景结构：${draft.entities.length} 个组件、${draft.conditions.length} 个条件。`,
+          ),
+          notification: `场景已更新，记入 v${padVersion(version)}。`,
+        }
+      }, '无法写入本地存储，场景修改未保存。')
+    },
+
+    createExperimentFromAi: async (description, titleOverride) => {
+      const { aiKey, aiConfig } = get()
+      if (!aiKey) return { ok: false, message: '请先在顶栏「连接 AI」里填写密钥。' }
+      const cleanDescription = description.trim().slice(0, 600)
+      if (cleanDescription.length < 10) {
+        return { ok: false, message: '描述太短了：至少写 10 个字，说清楚实验里有什么、争的是什么。' }
+      }
+      if (get().revisionPending) return { ok: false, message: '正在写入版本，请稍候再试。' }
+      let draft: SceneDraft
+      try {
+        draft = await generateAiScene(aiConfig, aiKey, cleanDescription)
+      } catch (error) {
+        return {
+          ok: false,
+          message: error instanceof Error ? error.message : 'AI 生成失败，请重试。',
+        }
+      }
+      const cleanOverride = titleOverride.trim().slice(0, 40)
+      if (cleanOverride) draft = { ...draft, title: cleanOverride }
+      let experiment: Experiment
+      try {
+        experiment = createExperimentFromDraft(draft)
+      } catch {
+        return { ok: false, message: '生成的场景结构不合法，请重试或改用模板创建。' }
+      }
+      try {
+        await flushCurrentDraft()
+        const initial = createRevision(
+          experiment,
+          1,
+          '初始状态',
+          `由 AI（${aiConfig.model.trim()}）根据描述生成。`,
+        )
+        await enqueueWrite(async () => {
+          await db.transaction('rw', db.experiments, db.revisions, async () => {
+            await db.experiments.put(experiment)
+            await db.revisions.put(initial)
+          })
+        })
+        activate({ experiment, revisions: [initial] })
+        await refreshSummaries()
+        notify(`已生成「${experiment.title}」。`)
+        return { ok: true }
+      } catch {
+        return { ok: false, message: '无法写入本地存储，创建失败。' }
+      }
     },
 
     switchExperiment: async (id) => {

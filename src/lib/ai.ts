@@ -1,5 +1,12 @@
 import type { SceneSpec } from './schema'
 import { STANCE_BY_ID } from './content'
+import {
+  ENTITY_KINDS,
+  KIND_META,
+  SceneDraftSchema,
+  type EntityKind,
+  type SceneDraft,
+} from './sceneDraft'
 
 export interface AiConfig {
   preset: string
@@ -268,6 +275,188 @@ export async function generateAiProbe(
     const parsed = typeof content === 'string' ? parseGeneratedProbe(content) : null
     if (!parsed) throw new Error('模型返回的内容无法解析。')
     return parsed
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('请求超时，服务商没有响应。')
+    }
+    if (error instanceof TypeError) {
+      throw new Error('无法连接：请检查网络，或该接口是否允许浏览器直接调用。')
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const SCENE_SYSTEM_PROMPT = [
+  '你是 PP Lab 的场景架构师：把用户描述的哲学思想实验拆解成组件，配置成一个可交互的 3D 舞台。',
+  '',
+  '舞台有 7 个固定组件位（kind），外观与位置固定，你只决定哪些出场、叫什么名字：',
+  '- monolith 核心对象：被研究的系统或对象，内部默认不可见，条件开启时外壳变透明。几乎每个实验都需要。',
+  '- core 内部机制：对象内部的运作机制，随条件显形。',
+  '- channel 输入输出通道：对象与外界之间的信号、纸条、刺激通路。',
+  '- observer 外部观察者：在对象之外提问、观察或体验的人。',
+  '- verifier 独立检验者：独立于对象的测试、裁判或现实对照，随条件出现。',
+  '- reason-ring 理由与价值：环绕对象的理由、理解或价值之环，随条件点亮。',
+  '- environment 环境：实验发生的房间或实验室。',
+  '',
+  '条件（conditions）是实验的前提开关，用户逐个开启/关闭，舞台随之变化。每个条件用 targets 指定它作用于哪些组件位。',
+  '',
+  '拆解方法：',
+  '1. 被考察的对象 → monolith；它的内部机制 → core；它与外界的交流 → channel。',
+  '2. 谁在看/问/体验 → observer；独立的检验或对照 → verifier。',
+  '3. 争论焦点涉及的理由、理解、价值 → reason-ring；场景背景 → environment。',
+  '4. 把哲学前提写成 2–4 个条件。axis：epistemic（能否知道、解释）、social（能否被他人检验）、internal（内在理由、理解、价值）。',
+  '5. 每个条件的 targets 选 1–3 个有外观变化的组件位（monolith/core/channel/verifier/reason-ring）；observer 与 environment 没有外观绑定，不要选。',
+  '',
+  '输出要求：',
+  '- 只输出一个 JSON 对象，不要输出其他文字或代码块标记。',
+  '- family 三选一：black-box-room（心智、科技哲学）、chinese-room（语言、理解）、experience-machine（价值、伦理），选最接近的。',
+  '- title：中文实验名，不超过 16 字；subtitle：英文名，不超过 60 字符。',
+  '- entities：4–7 个，kind 不重复；label 中文不超过 10 字；caption 大写英文不超过 30 字符。',
+  '- conditions：2–4 个；id 用短英文 slug，语义相符时优先用 interpretable / verifiable / has-reasons（立场卡会针对它们提问）；label 中文不超过 10 字；hint 一句话解释前提，不超过 50 字。',
+  '- 文字贴合用户描述的实验，不要编造文献。',
+  '',
+  'JSON 结构：',
+  '{"family":"black-box-room","title":"…","subtitle":"…","entities":[{"kind":"monolith","label":"…","caption":"…"}],"conditions":[{"id":"interpretable","label":"…","hint":"…","axis":"epistemic","targets":["monolith","core"]}]}',
+].join('\n')
+
+function normalizeRawScene(raw: unknown): unknown {
+  if (typeof raw !== 'object' || raw === null) return raw
+  const data = raw as Record<string, unknown>
+  const validKinds = new Set<string>(ENTITY_KINDS)
+
+  const seenKinds = new Set<string>()
+  const entities: Array<Record<string, unknown>> = []
+  for (const item of Array.isArray(data.entities) ? data.entities : []) {
+    if (typeof item !== 'object' || item === null) continue
+    const entity = item as Record<string, unknown>
+    const kind = typeof entity.kind === 'string' ? entity.kind : ''
+    if (!validKinds.has(kind) || seenKinds.has(kind)) continue
+    seenKinds.add(kind)
+    const meta = KIND_META[kind as EntityKind]
+    entities.push({
+      kind,
+      label:
+        typeof entity.label === 'string' && entity.label.trim()
+          ? entity.label
+          : meta.defaultLabel,
+      caption: typeof entity.caption === 'string' ? entity.caption : meta.defaultCaption,
+    })
+    if (entities.length >= 7) break
+  }
+
+  const seenIds = new Set<string>()
+  const conditions: Array<Record<string, unknown>> = []
+  const rawConditions = Array.isArray(data.conditions) ? data.conditions : []
+  rawConditions.forEach((item, index) => {
+    if (typeof item !== 'object' || item === null) return
+    const condition = item as Record<string, unknown>
+    let id =
+      typeof condition.id === 'string' && condition.id.trim()
+        ? condition.id.trim().slice(0, 32)
+        : `cond-${index + 1}`
+    if (seenIds.has(id)) id = `${id}-${index + 1}`.slice(0, 32)
+    seenIds.add(id)
+    const targets = Array.isArray(condition.targets)
+      ? [
+          ...new Set(
+            condition.targets.filter(
+              (target): target is string => typeof target === 'string' && validKinds.has(target),
+            ),
+          ),
+        ]
+      : []
+    conditions.push({
+      id,
+      label:
+        typeof condition.label === 'string' && condition.label.trim()
+          ? condition.label
+          : `条件 ${index + 1}`,
+      hint: typeof condition.hint === 'string' ? condition.hint : '',
+      axis:
+        condition.axis === 'social' || condition.axis === 'internal'
+          ? condition.axis
+          : 'epistemic',
+      targets,
+    })
+  })
+
+  return {
+    family:
+      data.family === 'chinese-room' || data.family === 'experience-machine'
+        ? data.family
+        : 'black-box-room',
+    title: typeof data.title === 'string' && data.title.trim() ? data.title : '未命名实验',
+    subtitle:
+      typeof data.subtitle === 'string' && data.subtitle.trim()
+        ? data.subtitle
+        : 'Untitled Experiment',
+    entities,
+    conditions: conditions.slice(0, 8),
+  }
+}
+
+function parseGeneratedScene(content: string): SceneDraft {
+  const fenced = content.replace(/```(?:json)?/gi, '').trim()
+  const start = fenced.indexOf('{')
+  const end = fenced.lastIndexOf('}')
+  if (start < 0 || end <= start) throw new Error('模型没有返回可用的场景结构，请重试。')
+  let raw: unknown
+  try {
+    raw = JSON.parse(fenced.slice(start, end + 1))
+  } catch {
+    throw new Error('模型返回的内容不是合法 JSON，请重试。')
+  }
+  const parsed = SceneDraftSchema.safeParse(normalizeRawScene(raw))
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    throw new Error(
+      `模型返回的场景结构不完整（${issue?.path.join('.') || '未知字段'}），请重试或改用模板创建。`,
+    )
+  }
+  return parsed.data
+}
+
+export async function generateAiScene(
+  config: AiConfig,
+  key: string,
+  description: string,
+): Promise<SceneDraft> {
+  const urlError = validateBaseUrl(config.baseUrl)
+  if (urlError) throw new Error(urlError)
+  if (!config.model.trim()) throw new Error('请填写模型名。')
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 60000)
+  try {
+    const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key.trim()}`,
+      },
+      body: JSON.stringify({
+        model: config.model.trim(),
+        messages: [
+          { role: 'system' as const, content: SCENE_SYSTEM_PROMPT },
+          { role: 'user' as const, content: `用户的实验描述：\n${description}` },
+        ],
+        temperature: 0.6,
+        max_tokens: 1600,
+      }),
+      signal: controller.signal,
+      redirect: 'error',
+    })
+    if (!response.ok) {
+      const detail = await readProviderError(response)
+      throw new Error(friendlyHttpError(response.status) + (detail ? ` ${detail}` : ''))
+    }
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>
+    }
+    const content = data.choices?.[0]?.message?.content
+    if (typeof content !== 'string') throw new Error('模型返回的内容无法解析。')
+    return parseGeneratedScene(content)
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('请求超时，服务商没有响应。')

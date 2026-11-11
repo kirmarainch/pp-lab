@@ -6,6 +6,7 @@ import { useLabStore } from '../../lib/store'
 import { FAMILY_LABEL } from '../../lib/templates'
 import type { Theme } from '../../lib/theme'
 import { SceneErrorBoundary } from '../ui/SceneErrorBoundary'
+import { SlidersIcon } from '../ui/Icons'
 import { BlackBoxCanvas } from './BlackBoxCanvas'
 import { Fallback2D } from './Fallback2D'
 import { SceneLabelOverlay } from './SceneLabels'
@@ -29,6 +30,8 @@ function detectWebGL(): boolean {
 
 export function StagePanel({ theme }: { theme: Theme }) {
   const experiment = useLabStore((state) => state.experiment)
+  const revisionPending = useLabStore((state) => state.revisionPending)
+  const setSceneEditorOpen = useLabStore((state) => state.setSceneEditorOpen)
   const [view, setView] = useState<StageView>('scene')
   const [presetId, setPresetId] = useState<CameraPresetId>('overview')
   const [webglAvailable] = useState(detectWebGL)
@@ -137,17 +140,30 @@ export function StagePanel({ theme }: { theme: Theme }) {
 
             {view === 'scene' ? (
               <>
-                <div className="segmented" role="group" aria-label="相机预设">
-                  {scene.spec.cameraPresets.map((camera) => (
-                    <button
-                      key={camera.id}
-                      type="button"
-                      aria-pressed={camera.id === preset.id}
-                      onClick={() => setPresetId(camera.id)}
-                    >
-                      {camera.label}
-                    </button>
-                  ))}
+                <div className="stage-scene-tools">
+                  <div className="segmented" role="group" aria-label="相机预设">
+                    {scene.spec.cameraPresets.map((camera) => (
+                      <button
+                        key={camera.id}
+                        type="button"
+                        aria-pressed={camera.id === preset.id}
+                        onClick={() => setPresetId(camera.id)}
+                      >
+                        {camera.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm stage-customize-btn"
+                    data-testid="scene-editor-open"
+                    onClick={() => setSceneEditorOpen(true)}
+                    disabled={revisionPending}
+                    title="编辑场景组件与条件开关"
+                  >
+                    <SlidersIcon />
+                    自定义场景
+                  </button>
                 </div>
                 <span className="stage-tool-meta">
                   Camera · {preset.label} / {activeCount} conditions

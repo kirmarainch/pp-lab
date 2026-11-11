@@ -37,6 +37,10 @@ export function resolveScene(spec: SceneSpec): ResolvedScene {
   return { spec, entities, annotations }
 }
 
+export function entityIdByKind(scene: ResolvedScene, kind: SceneEntity['kind']): string {
+  return scene.spec.entities.find((entity) => entity.kind === kind)?.id ?? ''
+}
+
 export function readProp<T extends ScenePropertyValue>(
   scene: ResolvedScene,
   entityId: string,

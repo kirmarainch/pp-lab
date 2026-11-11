@@ -10,7 +10,7 @@ import {
   RoundedBox,
 } from '@react-three/drei'
 import * as THREE from 'three'
-import { readNumberProp, type ResolvedScene } from '../../lib/resolveScene'
+import { entityIdByKind, readNumberProp, type ResolvedScene } from '../../lib/resolveScene'
 import type { CameraPreset } from '../../lib/schema'
 import type { Theme } from '../../lib/theme'
 import { LabelProjector, type LabelRegistry } from './SceneLabels'
@@ -112,16 +112,22 @@ export function BlackBoxCanvas({
 
 function SceneContents({ scene, preset, labelRegistry, theme }: BlackBoxCanvasProps) {
   const palette = SCENE_PALETTES[theme]
-  const monolithOpacity = readNumberProp(scene, 'monolith', 'opacity', 1)
+  const monolithId = entityIdByKind(scene, 'monolith')
+  const coreId = entityIdByKind(scene, 'core')
+  const verifierId = entityIdByKind(scene, 'verifier')
+  const reasonId = entityIdByKind(scene, 'reason-ring')
+  const channelId = entityIdByKind(scene, 'channel')
+  const observerId = entityIdByKind(scene, 'observer')
+  const monolithOpacity = readNumberProp(scene, monolithId, 'opacity', 1)
   const open = monolithOpacity < 0.5
-  const seamIntensity = readNumberProp(scene, 'monolith', 'seamIntensity', 0.28)
-  const capLight = readNumberProp(scene, 'monolith', 'capLight', 0)
-  const coreScale = readNumberProp(scene, 'core', 'scale', 0)
-  const coreSpin = readNumberProp(scene, 'core', 'spin', 0.2)
-  const verifierScale = readNumberProp(scene, 'verifier', 'scale', 0)
-  const reasonScale = readNumberProp(scene, 'reasonRing', 'scale', 0)
-  const reasonSpin = readNumberProp(scene, 'reasonRing', 'spin', 0.08)
-  const channelOpacity = readNumberProp(scene, 'channel', 'opacity', 0.38)
+  const seamIntensity = readNumberProp(scene, monolithId, 'seamIntensity', 0.28)
+  const capLight = readNumberProp(scene, monolithId, 'capLight', 0)
+  const coreScale = readNumberProp(scene, coreId, 'scale', 0)
+  const coreSpin = readNumberProp(scene, coreId, 'spin', 0.2)
+  const verifierScale = readNumberProp(scene, verifierId, 'scale', 0)
+  const reasonScale = readNumberProp(scene, reasonId, 'scale', 0)
+  const reasonSpin = readNumberProp(scene, reasonId, 'spin', 0.08)
+  const channelOpacity = readNumberProp(scene, channelId, 'opacity', 0.38)
 
   return (
     <>
@@ -178,17 +184,19 @@ function SceneContents({ scene, preset, labelRegistry, theme }: BlackBoxCanvasPr
 
       <Room palette={palette} />
       <FloorGlow theme={theme} />
-      <Monolith
-        open={open}
-        seamIntensity={seamIntensity}
-        capLight={capLight}
-        palette={palette}
-      />
+      {monolithId && (
+        <Monolith
+          open={open}
+          seamIntensity={seamIntensity}
+          capLight={capLight}
+          palette={palette}
+        />
+      )}
       <Core visible={coreScale > 0.5} spin={coreSpin} />
       <ReasonRing visible={reasonScale > 0.5} spin={reasonSpin} />
-      <Observer palette={palette} />
+      {observerId && <Observer palette={palette} />}
       <Verifier visible={verifierScale > 0.5} />
-      <Channel opacity={channelOpacity} />
+      {channelId && <Channel opacity={channelOpacity} />}
       <Dust />
       <LabelProjector annotations={scene.annotations} registry={labelRegistry} />
       <CameraRig preset={preset} />
