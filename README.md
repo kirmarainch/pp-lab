@@ -4,6 +4,8 @@
 
 在线使用：https://kirmarainch.github.io/pp-lab/
 
+**宣传片（2 分 07 秒，1080p 含声音）**：[▶ 在线观看宣传片](https://kirmarainch.github.io/pp-lab/promo/pp-lab-promo.mp4)（链接即下载地址；网页顶栏也有「宣传片」入口）
+
 不需要注册，不需要下载。打开网页就能用。你可以连接自己的 AI（可选），也可以完全离线使用内置内容。
 
 ## 这是什么

@@ -13,6 +13,9 @@ video/
 *.prproj
 *.drp
 
+# promo film published by owner decision (2026-11-13); all other videos stay local
+!public/promo/pp-lab-promo.mp4
+
 .env
 .env.*
 !.env.example

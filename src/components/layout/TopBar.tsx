@@ -75,6 +75,15 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
       </div>
 
       <div className="topbar-right">
+        <a
+          className="btn btn-sm"
+          href="https://kirmarainch.github.io/pp-lab/promo/pp-lab-promo.mp4"
+          target="_blank"
+          rel="noreferrer"
+          title="观看 2 分 07 秒宣传片（1080p 含声音）"
+        >
+          宣传片
+        </a>
         <button
           type="button"
           className="theme-toggle"
