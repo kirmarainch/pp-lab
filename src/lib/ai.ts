@@ -13,7 +13,6 @@ import {
   type EntityKind,
   type SceneDraft,
 } from './sceneDraft'
-import { DEMO_MODE, runDemoExperiment, runDemoProbe, runDemoTest } from './demo'
 
 export interface AiConfig {
   preset: string
@@ -159,7 +158,6 @@ export interface AiTestResult {
 }
 
 export async function testAiConnection(config: AiConfig, key: string): Promise<AiTestResult> {
-  if (DEMO_MODE) return runDemoTest(key)
   const urlError = validateBaseUrl(config.baseUrl)
   if (urlError) return { ok: false, message: urlError }
   if (!key.trim()) return { ok: false, message: '请先填写 API 密钥。' }
@@ -252,7 +250,6 @@ export async function generateAiProbe(
   key: string,
   input: ProbeGenerationInput,
 ): Promise<GeneratedProbe> {
-  if (DEMO_MODE) return runDemoProbe(input)
   const urlError = validateBaseUrl(config.baseUrl)
   if (urlError) throw new Error(urlError)
   if (!config.model.trim()) throw new Error('请填写模型名。')
@@ -499,9 +496,7 @@ export async function generateAiExperiment(
   key: string,
   description: string,
   initialClaim = '',
-  onStage?: (stage: string) => void,
 ): Promise<GeneratedExperiment> {
-  if (DEMO_MODE) return runDemoExperiment(initialClaim, onStage)
   const urlError = validateBaseUrl(config.baseUrl)
   if (urlError) throw new Error(urlError)
   if (!config.model.trim()) throw new Error('请填写模型名。')

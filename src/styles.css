@@ -4812,16 +4812,6 @@ select.field-input {
   color: var(--faint);
 }
 
-.exp-ai-stage {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 10.5px;
-  letter-spacing: 0.02em;
-  color: var(--text-soft);
-}
-
 .exp-row-main:focus-visible,
 .exp-icon-btn:focus-visible,
 .experiment-switcher:focus-visible {

@@ -39,7 +39,6 @@ export function ExperimentsPanel() {
   const [renameSubtitle, setRenameSubtitle] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [aiStage, setAiStage] = useState('')
 
   const dialogRef = useDialogFocus<HTMLDivElement>()
   const close = () => setExperimentsPanelOpen(false)
@@ -77,15 +76,13 @@ export function ExperimentsPanel() {
       }
       setCreateError('')
       setBusy(true)
-      setAiStage('')
       void (async () => {
         try {
-          const result = await createExperimentFromAi(aiDescription, createTitle, aiInitialClaim, setAiStage)
+          const result = await createExperimentFromAi(aiDescription, createTitle, aiInitialClaim)
           if (result.ok) close()
           else setCreateError(result.message ?? 'AI 生成失败，请重试。')
         } finally {
           setBusy(false)
-          setAiStage('')
         }
       })()
       return
@@ -286,13 +283,6 @@ export function ExperimentsPanel() {
               <div className="form-error" role="alert">
                 {createError}
               </div>
-            )}
-
-            {busy && createMode === 'ai' && aiStage && (
-              <p className="exp-ai-stage" role="status">
-                <span className="probe-spinner" aria-hidden="true" />
-                {aiStage}
-              </p>
             )}
 
             <div className="modal-actions">
