@@ -175,6 +175,26 @@ export const ProbeSchema = z.object({
 })
 export type Probe = z.infer<typeof ProbeSchema>
 
+export const ExperimentBriefSchema = z.object({
+  situation: z.string().max(200),
+  notes: z.array(z.string().max(60)).max(4),
+})
+export type ExperimentBrief = z.infer<typeof ExperimentBriefSchema>
+
+export const ExperimentLensSchema = z.object({
+  id: z.literal('stance-custom'),
+  name: z.string().min(1),
+  en: z.string(),
+  summary: z.string(),
+  lens: z.string(),
+  probeObjection: z.string(),
+  commitments: z.array(z.string()).max(4),
+  objections: z.array(z.string()).max(3),
+  limitation: z.string(),
+  probeTargetConditionId: z.string().optional(),
+})
+export type ExperimentLens = z.infer<typeof ExperimentLensSchema>
+
 export const ExperimentSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -184,6 +204,8 @@ export const ExperimentSchema = z.object({
   claim: z.string(),
   stanceId: z.string().nullable(),
   probe: ProbeSchema.nullable(),
+  brief: ExperimentBriefSchema.optional(),
+  lens: ExperimentLensSchema.optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

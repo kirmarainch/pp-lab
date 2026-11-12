@@ -1,3 +1,5 @@
+import type { Experiment, ExperimentLens } from './schema'
+
 export interface StanceSource {
   citation: string
   url: string
@@ -106,6 +108,29 @@ export const STANCES: Stance[] = [
 export const STANCE_BY_ID: Record<string, Stance> = Object.fromEntries(
   STANCES.map((stance) => [stance.id, stance]),
 )
+
+export const CUSTOM_LENS_ID = 'stance-custom'
+
+export function stancesFor(experiment: Experiment | null): Stance[] {
+  if (experiment?.lens) return [{ ...experiment.lens, sources: [] }, ...STANCES]
+  return STANCES
+}
+
+export function resolveStanceById(
+  lens: ExperimentLens | null | undefined,
+  stanceId: string | null,
+): Stance | undefined {
+  if (!stanceId) return undefined
+  if (lens && stanceId === lens.id) return { ...lens, sources: [] }
+  return STANCE_BY_ID[stanceId]
+}
+
+export function resolveStance(
+  experiment: Experiment | null,
+  stanceId: string | null,
+): Stance | undefined {
+  return resolveStanceById(experiment?.lens, stanceId)
+}
 
 export const PROBE_STATUS_LABEL = {
   open: '待回应',

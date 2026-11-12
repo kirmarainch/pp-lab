@@ -6,7 +6,7 @@ import { newId } from './id'
 import { runPremiseProbe } from './probe'
 import {
   generateAiProbe,
-  generateAiScene,
+  generateAiExperiment,
   loadAiConfig,
   loadApiKey,
   saveAiConfig,
@@ -17,7 +17,7 @@ import {
 import { assembleScene, createExperimentFromDraft, type SceneDraft } from './sceneDraft'
 import { setConditionValue } from './resolveScene'
 import { createRevision, nextRevisionNumber } from './revision'
-import type { Experiment, ExperimentFamily, Probe, ProbeStatus, Revision, SceneSpec } from './schema'
+import type { Experiment, ExperimentBrief, ExperimentFamily, Probe, ProbeStatus, Revision, SceneSpec } from './schema'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 export type ProbeAction = 'respond' | 'revise' | 'retain'
@@ -83,10 +83,11 @@ interface LabStore {
   setAiPanelOpen: (open: boolean) => void
   setExperimentsPanelOpen: (open: boolean) => void
   setSceneEditorOpen: (open: boolean) => void
-  applySceneDraft: (draft: SceneDraft) => Promise<boolean>
+  applySceneDraft: (draft: SceneDraft, brief?: ExperimentBrief) => Promise<boolean>
   createExperimentFromAi: (
     description: string,
     titleOverride: string,
+    initialClaim?: string,
   ) => Promise<{ ok: boolean; message?: string }>
   switchExperiment: (id: string) => Promise<boolean>
   createExperiment: (family: ExperimentFamily, title: string) => Promise<boolean>
@@ -401,6 +402,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
         claim: experiment.claim,
         sceneSpec: experiment.sceneSpec,
         stanceId: experiment.stanceId,
+        lens: experiment.lens,
       })
       const { aiKey, aiConfig } = get()
       if (!aiKey) {
@@ -418,6 +420,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
             sceneSpec: experiment.sceneSpec,
             stanceId: experiment.stanceId,
             targetPremise: localProbe.targetPremise,
+            lens: experiment.lens,
           })
           const current = get().experiment
           // 生成期间用户可能切换了实验；结果只写回发起时的那个实验。
@@ -556,7 +559,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
       set({ sceneEditorOpen: open })
     },
 
-    applySceneDraft: async (draft) => {
+    applySceneDraft: async (draft, brief) => {
       if (!get().experiment || get().revisionPending) return false
       let sceneSpec: SceneSpec
       try {
@@ -572,6 +575,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
           subtitle: draft.subtitle,
           family: draft.family,
           sceneSpec,
+          ...(brief ? { brief } : {}),
           updatedAt: Date.now(),
         }
         const version = nextRevisionNumber(revisions)
@@ -588,7 +592,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
       }, '无法写入本地存储，场景修改未保存。')
     },
 
-    createExperimentFromAi: async (description, titleOverride) => {
+    createExperimentFromAi: async (description, titleOverride, initialClaim = '') => {
       const { aiKey, aiConfig } = get()
       if (!aiKey) return { ok: false, message: '请先在顶栏「连接 AI」里填写密钥。' }
       const cleanDescription = description.trim().slice(0, 600)
@@ -596,20 +600,26 @@ export const useLabStore = create<LabStore>()((set, get) => {
         return { ok: false, message: '描述太短了：至少写 10 个字，说清楚实验里有什么、争的是什么。' }
       }
       if (get().revisionPending) return { ok: false, message: '正在写入版本，请稍候再试。' }
-      let draft: SceneDraft
+      let generated: Awaited<ReturnType<typeof generateAiExperiment>>
       try {
-        draft = await generateAiScene(aiConfig, aiKey, cleanDescription)
+        generated = await generateAiExperiment(aiConfig, aiKey, cleanDescription, initialClaim)
       } catch (error) {
         return {
           ok: false,
           message: error instanceof Error ? error.message : 'AI 生成失败，请重试。',
         }
       }
+      let draft = generated.scene
       const cleanOverride = titleOverride.trim().slice(0, 40)
       if (cleanOverride) draft = { ...draft, title: cleanOverride }
       let experiment: Experiment
       try {
-        experiment = createExperimentFromDraft(draft)
+        experiment = {
+          ...createExperimentFromDraft(draft),
+          claim: generated.claimDraft,
+          brief: generated.brief,
+          ...(generated.lens ? { lens: generated.lens, stanceId: generated.lens.id } : {}),
+        }
       } catch {
         return { ok: false, message: '生成的场景结构不合法，请重试或改用模板创建。' }
       }

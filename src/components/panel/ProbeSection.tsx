@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { PROBE_STATUS_LABEL, STANCE_BY_ID } from '../../lib/content'
+import { PROBE_STATUS_LABEL, resolveStance } from '../../lib/content'
 import { useLabStore, type ProbeAction } from '../../lib/store'
 import { ArrowRightIcon, ProbeIcon } from '../ui/Icons'
 
@@ -37,7 +37,7 @@ export function ProbeSection() {
         ([conditionId, value]) => currentStates[conditionId] !== value,
       )
     : false
-  const probeStance = probe?.stanceId ? STANCE_BY_ID[probe.stanceId] : undefined
+  const probeStance = resolveStance(experiment, probe?.stanceId ?? null)
   const targetCondition = probe?.targetConditionId
     ? conditions.find((condition) => condition.id === probe.targetConditionId)
     : undefined

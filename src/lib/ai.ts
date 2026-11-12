@@ -1,5 +1,11 @@
-import type { SceneSpec } from './schema'
-import { STANCE_BY_ID } from './content'
+import {
+  ExperimentBriefSchema,
+  ExperimentLensSchema,
+  type ExperimentBrief,
+  type ExperimentLens,
+  type SceneSpec,
+} from './schema'
+import { resolveStanceById } from './content'
 import {
   ENTITY_KINDS,
   KIND_META,
@@ -182,10 +188,11 @@ export interface ProbeGenerationInput {
   sceneSpec: SceneSpec
   stanceId: string | null
   targetPremise: string
+  lens?: ExperimentLens | null
 }
 
 function buildProbeMessages(input: ProbeGenerationInput) {
-  const stance = input.stanceId ? STANCE_BY_ID[input.stanceId] : undefined
+  const stance = resolveStanceById(input.lens, input.stanceId)
   const conditions = input.sceneSpec.conditions
     .map((condition) => `- ${condition.label}（${condition.hint}）：${condition.value ? '开' : '关'}`)
     .join('\n')
@@ -317,8 +324,14 @@ const SCENE_SYSTEM_PROMPT = [
   '- conditions：2–4 个；id 用短英文 slug，语义相符时优先用 interpretable / verifiable / has-reasons（立场卡会针对它们提问）；label 中文不超过 10 字；hint 一句话解释前提，不超过 50 字。',
   '- 文字贴合用户描述的实验，不要编造文献。',
   '',
+  '除了场景，还要整理这个实验：',
+  '- situation：≤200 字复述情境（谁、面对什么、要判断什么），忠于用户描述，不编造细节。',
+  '- notes：0–4 条字符串，每条 ≤60 字，标出描述里的含混词、需澄清的概念、以及控制条件（例：「准确率相同只是控制条件，不意味着两者在所有相关方面相同」）。',
+  '- claimDraft：若用户给了初步判断，把它整理成一句可检验的主张（≤80 字，保留原意，不替用户改变立场）；若没给，输出空字符串 ""。',
+  '- lens：为这个实验生成一个批判性质询视角，对象 {name, en, summary, lens, probeObjection, commitments, objections, limitation, probeTargetConditionId}。name 中文 ≤8 字；summary 一句话；lens 一句追问；probeObjection 40–80 字具体异议；commitments 2–3 条；objections 1–2 条；limitation 必须包含「由 AI 生成的工作视角，不代表任何哲学家本人立场」；probeTargetConditionId 从 conditions 的 id 里选最相关的一个。它是工作视角，不要编造文献。',
+  '',
   'JSON 结构：',
-  '{"family":"black-box-room","title":"…","subtitle":"…","entities":[{"kind":"monolith","label":"…","caption":"…"}],"conditions":[{"id":"interpretable","label":"…","hint":"…","axis":"epistemic","targets":["monolith","core"]}]}',
+  '{"family":"black-box-room","title":"…","subtitle":"…","entities":[{"kind":"monolith","label":"…","caption":"…"}],"conditions":[{"id":"interpretable","label":"…","hint":"…","axis":"epistemic","targets":["monolith","core"]}],"situation":"…","notes":["…"],"claimDraft":"…","lens":{"name":"…","en":"…","summary":"…","lens":"…","probeObjection":"…","commitments":["…"],"objections":["…"],"limitation":"由 AI 生成的工作视角，不代表任何哲学家本人立场。","probeTargetConditionId":"interpretable"}}',
 ].join('\n')
 
 function normalizeRawScene(raw: unknown): unknown {
@@ -397,7 +410,60 @@ function normalizeRawScene(raw: unknown): unknown {
   }
 }
 
-function parseGeneratedScene(content: string): SceneDraft {
+function normalizeRawBrief(raw: Record<string, unknown>): ExperimentBrief {
+  const situation = typeof raw.situation === 'string' ? raw.situation.trim().slice(0, 200) : ''
+  const notes = Array.isArray(raw.notes)
+    ? raw.notes
+        .filter((note): note is string => typeof note === 'string' && Boolean(note.trim()))
+        .map((note) => note.trim().slice(0, 60))
+        .slice(0, 4)
+    : []
+  return { situation, notes }
+}
+
+const LENS_DISCLAIMER = '由 AI 生成的工作视角，不代表任何哲学家本人立场'
+
+function normalizeRawLens(raw: unknown): ExperimentLens | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const data = raw as Record<string, unknown>
+  const str = (value: unknown, fallback = '') =>
+    typeof value === 'string' && value.trim() ? value.trim() : fallback
+  const arr = (value: unknown, max: number) =>
+    Array.isArray(value)
+      ? value
+          .filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+          .map((item) => item.trim())
+          .slice(0, max)
+      : []
+  const name = str(data.name)
+  if (!name) return null
+  const limitation = str(data.limitation)
+  return {
+    id: 'stance-custom',
+    name: name.slice(0, 20),
+    en: str(data.en, 'CUSTOM LENS'),
+    summary: str(data.summary),
+    lens: str(data.lens),
+    probeObjection: str(data.probeObjection),
+    commitments: arr(data.commitments, 4),
+    objections: arr(data.objections, 3),
+    limitation: limitation.includes(LENS_DISCLAIMER)
+      ? limitation
+      : `${limitation ? `${limitation} ` : ''}${LENS_DISCLAIMER}。`,
+    ...(typeof data.probeTargetConditionId === 'string' && data.probeTargetConditionId.trim()
+      ? { probeTargetConditionId: data.probeTargetConditionId.trim() }
+      : {}),
+  }
+}
+
+export interface GeneratedExperiment {
+  scene: SceneDraft
+  brief: ExperimentBrief
+  claimDraft: string
+  lens: ExperimentLens | null
+}
+
+function parseGeneratedExperiment(content: string, hasInitialClaim: boolean): GeneratedExperiment {
   const fenced = content.replace(/```(?:json)?/gi, '').trim()
   const start = fenced.indexOf('{')
   const end = fenced.lastIndexOf('}')
@@ -415,20 +481,31 @@ function parseGeneratedScene(content: string): SceneDraft {
       `模型返回的场景结构不完整（${issue?.path.join('.') || '未知字段'}），请重试或改用模板创建。`,
     )
   }
-  return parsed.data
+  const rawObj = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const brief = ExperimentBriefSchema.parse(normalizeRawBrief(rawObj))
+  const normalizedLens = normalizeRawLens(rawObj.lens)
+  const lens = normalizedLens ? ExperimentLensSchema.parse(normalizedLens) : null
+  const claimDraft = hasInitialClaim && typeof rawObj.claimDraft === 'string'
+    ? rawObj.claimDraft.trim().slice(0, 80)
+    : ''
+  return { scene: parsed.data, brief, claimDraft, lens }
 }
 
-export async function generateAiScene(
+export async function generateAiExperiment(
   config: AiConfig,
   key: string,
   description: string,
-): Promise<SceneDraft> {
+  initialClaim = '',
+): Promise<GeneratedExperiment> {
   const urlError = validateBaseUrl(config.baseUrl)
   if (urlError) throw new Error(urlError)
   if (!config.model.trim()) throw new Error('请填写模型名。')
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 60000)
   try {
+    const userContent = initialClaim.trim()
+      ? `用户的实验描述：\n${description}\n\n用户的初步判断：\n${initialClaim.trim()}`
+      : `用户的实验描述：\n${description}`
     const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -439,10 +516,10 @@ export async function generateAiScene(
         model: config.model.trim(),
         messages: [
           { role: 'system' as const, content: SCENE_SYSTEM_PROMPT },
-          { role: 'user' as const, content: `用户的实验描述：\n${description}` },
+          { role: 'user' as const, content: userContent },
         ],
         temperature: 0.6,
-        max_tokens: 1600,
+        max_tokens: 2200,
       }),
       signal: controller.signal,
       redirect: 'error',
@@ -456,7 +533,11 @@ export async function generateAiScene(
     }
     const content = data.choices?.[0]?.message?.content
     if (typeof content !== 'string') throw new Error('模型返回的内容无法解析。')
-    return parseGeneratedScene(content)
+    const generated = parseGeneratedExperiment(content, Boolean(initialClaim.trim()))
+    if (!generated.brief.situation) {
+      generated.brief.situation = description.trim().slice(0, 200)
+    }
+    return generated
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('请求超时，服务商没有响应。')

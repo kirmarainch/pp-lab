@@ -2716,6 +2716,17 @@ body,
   font-size: 7.5px;
 }
 
+.stance-badge {
+  align-self: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .stance-summary {
   color: var(--muted);
   font-size: 10px;

@@ -1,4 +1,4 @@
-import { STANCES } from '../../lib/content'
+import { CUSTOM_LENS_ID, resolveStance, stancesFor } from '../../lib/content'
 import { useLabStore } from '../../lib/store'
 
 export function JudgmentSection() {
@@ -9,7 +9,8 @@ export function JudgmentSection() {
 
   if (!experiment) return null
 
-  const selectedStance = STANCES.find((stance) => stance.id === experiment.stanceId)
+  const selectedStance = resolveStance(experiment, experiment.stanceId)
+  const stances = stancesFor(experiment)
 
   return (
     <section className="section" aria-labelledby="claim-heading">
@@ -41,7 +42,7 @@ export function JudgmentSection() {
       </div>
 
       <div className="stance-list" role="radiogroup" aria-label="立场">
-        {STANCES.map((stance) => {
+        {stances.map((stance) => {
           const selected = experiment.stanceId === stance.id
           return (
             <button
@@ -58,6 +59,7 @@ export function JudgmentSection() {
                 <span className="stance-head">
                   <span className="stance-name">{stance.name}</span>
                   <span className="stance-en">{stance.en}</span>
+                  {stance.id === CUSTOM_LENS_ID && <span className="stance-badge">本实验视角</span>}
                 </span>
                 <span className="stance-summary">{stance.summary}</span>
                 {selected && <span className="stance-lens">{stance.lens}</span>}

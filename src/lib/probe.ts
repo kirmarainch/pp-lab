@@ -1,18 +1,15 @@
-import { PROBE_PLACEHOLDER, STANCE_BY_ID } from './content'
+import { PROBE_PLACEHOLDER, resolveStanceById, type Stance } from './content'
 import { newId } from './id'
-import type { Probe, SceneSpec } from './schema'
+import type { ExperimentLens, Probe, SceneSpec } from './schema'
 
 interface ProbeInput {
   sceneSpec: SceneSpec
   stanceId: string | null
   claim: string
+  lens?: ExperimentLens | null
 }
 
-function pickTargetConditionId(
-  sceneSpec: SceneSpec,
-  stanceId: string | null,
-): string | undefined {
-  const stance = stanceId ? STANCE_BY_ID[stanceId] : undefined
+function pickTargetConditionId(sceneSpec: SceneSpec, stance: Stance | undefined): string | undefined {
   const preferred = stance?.probeTargetConditionId
   if (preferred && sceneSpec.conditions.some((condition) => condition.id === preferred)) {
     return preferred
@@ -24,14 +21,14 @@ function pickTargetConditionId(
 }
 
 /**
- * 探针的结构与目标前提已接通；正文优先来自立场卡，未选立场时保留占位。
+ * 探针的结构与目标前提已接通；正文优先来自立场卡（含本实验视角），未选立场时保留占位。
  */
 export function runPremiseProbe(input: ProbeInput): Probe {
   const conditions = Object.fromEntries(
     input.sceneSpec.conditions.map((condition) => [condition.id, condition.value]),
   )
-  const stance = input.stanceId ? STANCE_BY_ID[input.stanceId] : undefined
-  const targetConditionId = pickTargetConditionId(input.sceneSpec, input.stanceId)
+  const stance = resolveStanceById(input.lens, input.stanceId)
+  const targetConditionId = pickTargetConditionId(input.sceneSpec, stance)
   const targetCondition = input.sceneSpec.conditions.find(
     (condition) => condition.id === targetConditionId,
   )
