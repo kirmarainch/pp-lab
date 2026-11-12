@@ -10,7 +10,7 @@ import {
   type EntityKind,
   type SceneDraft,
 } from '../../lib/sceneDraft'
-import type { ExperimentFamily } from '../../lib/schema'
+import type { ExperimentBrief, ExperimentFamily } from '../../lib/schema'
 import { useLabStore } from '../../lib/store'
 import { FAMILY_LABEL } from '../../lib/templates'
 import { CloseIcon, PlusIcon, TrashIcon } from '../ui/Icons'
@@ -29,10 +29,15 @@ export function SceneEditorPanel() {
   const nameId = useId()
   const subtitleId = useId()
   const familyId = useId()
+  const briefId = useId()
+  const situationId = useId()
+  const notesId = useId()
 
   const [draft, setDraft] = useState<SceneDraft | null>(() =>
     experiment ? draftFromScene(experiment.sceneSpec) : null,
   )
+  const [briefSituation, setBriefSituation] = useState(experiment?.brief?.situation ?? '')
+  const [briefNotes, setBriefNotes] = useState((experiment?.brief?.notes ?? []).join('\n'))
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -141,10 +146,19 @@ export function SceneEditorPanel() {
       setError('场景结构不合法，请检查组件与条件设置。')
       return
     }
+    const brief: ExperimentBrief = {
+      situation: briefSituation.trim().slice(0, 200),
+      notes: briefNotes
+        .split('\n')
+        .map((note) => note.trim())
+        .filter(Boolean)
+        .slice(0, 4)
+        .map((note) => note.slice(0, 60)),
+    }
     setBusy(true)
     void (async () => {
       try {
-        const ok = await applySceneDraft(clean)
+        const ok = await applySceneDraft(clean, brief)
         if (ok) close()
       } finally {
         setBusy(false)
@@ -236,6 +250,45 @@ export function SceneEditorPanel() {
                 </select>
               </label>
             </div>
+          </section>
+
+          <section aria-labelledby={briefId}>
+            <h4 className="se-section-title" id={briefId}>
+              实验说明
+              <span>显示在舞台左下角的说明卡</span>
+            </h4>
+            <label className="modal-field" htmlFor={situationId}>
+              <span className="modal-field-label">
+                <span>情境说明</span>
+                <span>{briefSituation.length}/200</span>
+              </span>
+              <textarea
+                id={situationId}
+                className="field-input se-brief-situation"
+                value={briefSituation}
+                onChange={(event) => setBriefSituation(event.target.value)}
+                placeholder="这个实验设定了什么情境？舞台画面表达不了的背景写在这里。"
+                maxLength={200}
+                rows={3}
+                disabled={busy}
+              />
+            </label>
+            <label className="modal-field" htmlFor={notesId}>
+              <span className="modal-field-label">
+                <span>含混处与控制条件</span>
+                <span>每行一条，最多 4 条，每条 60 字</span>
+              </span>
+              <textarea
+                id={notesId}
+                className="field-input se-brief-notes"
+                value={briefNotes}
+                onChange={(event) => setBriefNotes(event.target.value)}
+                placeholder={'每行一条，例如：\n「准确率相同」只是控制条件，不意味着两者在所有相关方面相同。'}
+                maxLength={243}
+                rows={4}
+                disabled={busy}
+              />
+            </label>
           </section>
 
           <section aria-labelledby={kindsId}>

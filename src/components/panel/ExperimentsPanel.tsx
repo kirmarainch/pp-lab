@@ -23,6 +23,7 @@ export function ExperimentsPanel() {
   const titleId = useId()
   const nameId = useId()
   const aiDescriptionId = useId()
+  const aiClaimId = useId()
   const renameTitleId = useId()
   const renameSubtitleId = useId()
 
@@ -31,6 +32,7 @@ export function ExperimentsPanel() {
   const [createTitle, setCreateTitle] = useState('')
   const [createFamily, setCreateFamily] = useState<ExperimentFamily>('black-box-room')
   const [aiDescription, setAiDescription] = useState('')
+  const [aiInitialClaim, setAiInitialClaim] = useState('')
   const [createError, setCreateError] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
@@ -76,7 +78,7 @@ export function ExperimentsPanel() {
       setBusy(true)
       void (async () => {
         try {
-          const result = await createExperimentFromAi(aiDescription, createTitle)
+          const result = await createExperimentFromAi(aiDescription, createTitle, aiInitialClaim)
           if (result.ok) close()
           else setCreateError(result.message ?? 'AI 生成失败，请重试。')
         } finally {
@@ -206,8 +208,27 @@ export function ExperimentsPanel() {
                       disabled={busy}
                     />
                   </label>
+                  <label className="modal-field" htmlFor={aiClaimId}>
+                    <span className="modal-field-label">
+                      <span>初步判断（可选）</span>
+                      <span>{aiInitialClaim.length}/280</span>
+                    </span>
+                    <textarea
+                      id={aiClaimId}
+                      className="field-input exp-ai-claim"
+                      value={aiInitialClaim}
+                      onChange={(event) => {
+                        setAiInitialClaim(event.target.value)
+                        if (createError) setCreateError('')
+                      }}
+                      placeholder="写一句你现在的看法。AI 会把它整理成主张草稿，生成后仍可修改；不填则留空，由你自己下判断。"
+                      maxLength={280}
+                      rows={2}
+                      disabled={busy}
+                    />
+                  </label>
                   <p className="exp-note">
-                    AI 会把描述拆解成场景组件和前提条件，自动配置互动页面。生成后可以在舞台右上角「自定义场景」里手动调整。
+                    AI 会把描述拆解成场景组件和前提条件，整理情境说明、标出含混处，并生成本实验的质询视角。生成后可以在舞台右上角「自定义场景」里手动调整。
                   </p>
                 </>
               ) : (
