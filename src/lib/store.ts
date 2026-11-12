@@ -88,6 +88,7 @@ interface LabStore {
     description: string,
     titleOverride: string,
     initialClaim?: string,
+    onStage?: (stage: string) => void,
   ) => Promise<{ ok: boolean; message?: string }>
   switchExperiment: (id: string) => Promise<boolean>
   createExperiment: (family: ExperimentFamily, title: string) => Promise<boolean>
@@ -592,7 +593,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
       }, '无法写入本地存储，场景修改未保存。')
     },
 
-    createExperimentFromAi: async (description, titleOverride, initialClaim = '') => {
+    createExperimentFromAi: async (description, titleOverride, initialClaim = '', onStage) => {
       const { aiKey, aiConfig } = get()
       if (!aiKey) return { ok: false, message: '请先在顶栏「连接 AI」里填写密钥。' }
       const cleanDescription = description.trim().slice(0, 600)
@@ -602,7 +603,7 @@ export const useLabStore = create<LabStore>()((set, get) => {
       if (get().revisionPending) return { ok: false, message: '正在写入版本，请稍候再试。' }
       let generated: Awaited<ReturnType<typeof generateAiExperiment>>
       try {
-        generated = await generateAiExperiment(aiConfig, aiKey, cleanDescription, initialClaim)
+        generated = await generateAiExperiment(aiConfig, aiKey, cleanDescription, initialClaim, onStage)
       } catch (error) {
         return {
           ok: false,
