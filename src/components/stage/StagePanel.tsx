@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { describeScene } from '../../lib/narrative'
 import { resolveScene } from '../../lib/resolveScene'
 import type { CameraPreset } from '../../lib/schema'
@@ -7,11 +7,11 @@ import { FAMILY_LABEL } from '../../lib/templates'
 import type { Theme } from '../../lib/theme'
 import { SceneErrorBoundary } from '../ui/SceneErrorBoundary'
 import { SlidersIcon } from '../ui/Icons'
-import { BlackBoxCanvas } from './BlackBoxCanvas'
 import { Fallback2D } from './Fallback2D'
-import { SceneLabelOverlay } from './SceneLabels'
+import { SceneLabelOverlay } from './SceneLabelOverlay'
 import { hasBriefContent, SceneBriefCard } from './SceneBriefCard'
-import { ThoughtMap } from './ThoughtMap'
+const BlackBoxCanvas = lazy(() => import('./BlackBoxCanvas').then((m) => ({ default: m.BlackBoxCanvas })))
+const ThoughtMap = lazy(() => import('./ThoughtMap').then((m) => ({ default: m.ThoughtMap })))
 
 type CameraPresetId = CameraPreset['id']
 type StageView = 'scene' | 'map'
@@ -51,9 +51,10 @@ export function StagePanel({ theme }: { theme: Theme }) {
     [],
   )
 
+  const sceneSpec = experiment?.sceneSpec
   const scene = useMemo(
-    () => (experiment ? resolveScene(experiment.sceneSpec) : null),
-    [experiment],
+    () => (sceneSpec ? resolveScene(sceneSpec) : null),
+    [sceneSpec],
   )
 
   if (!experiment || !scene) return null
@@ -81,6 +82,7 @@ export function StagePanel({ theme }: { theme: Theme }) {
         aria-label={view === 'map' ? '思想星图' : `${FAMILY_LABEL[experiment.family].zh}交互场景`}
       >
         <div className="stage-canvas-host">
+          <Suspense fallback={<Fallback2D scene={scene} theme={theme} />}>
           {view === 'map' ? (
             <ThoughtMap experiment={experiment} />
           ) : use3D ? (
@@ -99,6 +101,7 @@ export function StagePanel({ theme }: { theme: Theme }) {
           ) : (
             <Fallback2D scene={scene} theme={theme} />
           )}
+          </Suspense>
         </div>
 
         <div className="stage-vignette" aria-hidden="true" />

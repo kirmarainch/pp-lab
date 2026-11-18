@@ -30,3 +30,6 @@ scripts/
 # user-owned source material, kept local
 PROJECT_BRIEF.zh-CN.md
 应用图标.jpg
+
+# beta invite codes: plaintext must never enter the repo (hashes live in src/lib/betaCodes.ts)
+beta-codes.local.txt
